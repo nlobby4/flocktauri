@@ -1,14 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "flocktauri",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "identifier": "com.flocktauri.flock",
   "build": {
     "beforeDevCommand": "",
     "devUrl": "https://flockmod.com/draw/",
     "beforeBuildCommand": ""
   },
-  
   "app": {
     "windows": [],
     "security": {
@@ -25,7 +24,9 @@
   },
   "plugins": {
     "fs": {
-      "scope": ["$APPDATA/**"]
+      "scope": [
+        "$APPDATA/**"
+      ]
     }
   }
 }

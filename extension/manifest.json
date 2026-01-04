@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Flockmod Extension",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Combines flockmod.js replacement and mod injection",
   "permissions": [
     "declarativeNetRequest"
@@ -24,8 +24,12 @@
         "https://flockmod.com/draw/*",
         "https://flockmod.com/r/*"
       ],
-      "js": ["content.js"],
-      "css": ["flockmod.css"],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "flockmod.css"
+      ],
       "run_at": "document_start",
       "all_frames": true
     }
