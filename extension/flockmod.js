@@ -17991,21 +17991,29 @@ this.loadContent(`
   <div class="mods-dialog">
     <div class="sidebar" style="width: 150px; background-color: #2c2c2c; padding: 10px;">
       <div class="sidebar-options">
-        <button name="info" class="subcontentOption" data-subcontent="info" style="display: block; width: 100%; background: none; color: #fff; border: none; text-align: left; padding: 10px; font-size: 14px; cursor: pointer;">
-            <i class="fa fa-info-circle"></i> Statistics
-        </button>
+
+        
+
+
         <button name="tweaks" class="subcontentOption" data-subcontent="tweaks" style="display: block; width: 100%; background: none; color: #fff; border: none; text-align: left; padding: 10px; font-size: 14px; cursor: pointer;">
             <i class="fa fa-wrench"></i> Tweaks
         </button>
+
         <button name="messenger" class="subcontentOption" data-subcontent="messenger" style="display: block; width: 100%; background: none; color: #fff; border: none; text-align: left; padding: 10px; font-size: 14px; cursor: pointer;">
             <i class="fa fa-ban"></i> Messenger Controls
         </button>
         <button name="undo" class="subcontentOption" data-subcontent="undo" style="display: block; width: 100%; background: none; color: #fff; border: none; text-align: left; padding: 10px; font-size: 14px; cursor: pointer;">
             <i class="fa fa-history"></i> Step Back
         </button>
+        <button name="info" class="subcontentOption" data-subcontent="info" style="display: block; width: 100%; background: none; color: #fff; border: none; text-align: left; padding: 10px; font-size: 14px; cursor: pointer;">
+            <i class="fa fa-info-circle"></i> Statistics
+        </button>
+        <!--
         <button name="trackers" class="subcontentOption" data-subcontent="trackers" style="display: block; width: 100%; background: none; color: #fff; border: none; text-align: left; padding: 10px; font-size: 14px; cursor: pointer;">
             <i class="fa fa-chart-line"></i> Trackers
         </button>
+        -->
+
         <!-- COMMENTED OUT: Currency button
         <button name="currency" class="subcontentOption" data-subcontent="currency" style="display: block; width: 100%; background: none; color: #fff; border: none; text-align: left; padding: 10px; font-size: 14px; cursor: pointer;">
             <i class="fa fa-coins"></i> Currency
@@ -18035,8 +18043,8 @@ this.loadContent(`
     this.startTimers();
     this.updateCurrentRoom(); // Update current room dynamically
 
-    // Load the "info" tab by default when the dialog opens
-    this.loadPage("info");
+    // Load the "tweaks" tab by default when the dialog opens
+    this.loadPage("tweaks");
   }
 
   startTimers() {
@@ -18231,7 +18239,7 @@ stopTimers() {
           <div class="tab-container">
             <div class="tab-buttons">
               <button id="roomTimesBtn" class="tab-button active">Room Times</button>
-              <button id="ipStatsBtn" class="tab-button">IP Stats</button>
+             <!-- <button id="ipStatsBtn" class="tab-button">IP Stats</button> -->
             </div>
       
             <div class="tab-content">
@@ -19592,7 +19600,10 @@ this.content.find("#goToShortcutSettings").on("click", (e) => {
           <div class="trackers-settings">
             <h2 style="border-bottom:1px solid #444; padding-bottom:10px; margin-bottom:20px;">Tracker Settings</h2>
             
+
+
             <div class="trackers-container">
+            <!--
               <div class="tracker-section">
                 <div class="tracker-title">
                   <i class="fa fa-chart-bar"></i> IP Statistics Tracker
@@ -19609,7 +19620,7 @@ this.content.find("#goToShortcutSettings").on("click", (e) => {
                   </label>
                 </div>
               </div>
-              
+              -->
               <div class="tracker-section">
                 <div class="tracker-title">
                   <i class="fa fa-clock"></i> Room Times Tracker
@@ -19821,14 +19832,14 @@ this.content.find("#goToShortcutSettings").on("click", (e) => {
                   <option value="cap">Cap</option>
                 </select>
               </div>
-              <!-- Enable 1000 Pressure Levels -->
+              <!-- Enable 1000 Pressure Levels 
               <div class="form-group" style="margin-bottom: 20px;">
                 <label for="enable1000PressureLevels" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                   <input type="checkbox" id="enable1000PressureLevels" class="styled-checkbox">
                   Enable 1000 Pressure Levels
                 </label>
               </div>
-      
+              -->
               <!-- Bypass DENIED#101 Error -->
               <div class="form-group" style="margin-bottom: 20px;">
                 <label for="bypassDenied101" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
@@ -39387,7 +39398,7 @@ else if (_0x1e4726.option == "sync") {
       if (typeof _0x472a85 === "number") {
         room["board"].setZoom(room["board"].scale * _0x472a85);
       } else {
-        _0x472a85 == "zoomIn" ? room["board"]["increaseZoom"](this["holdingSHIFT"] ? 0.1 : null) : room["board"]["decreaseZoom"](this["holdingSHIFT"] ? 0.1 : null);
+        _0x472a85 == "zoomIn" ? room["board"]["increaseZoom"](this["holdingSHIFT"] ? 0.05 : null) : room["board"]["decreaseZoom"](this["holdingSHIFT"] ? 0.05 : null);
       }
       
       this.moveBoard(_0xc9b547 - _0x2ed82f * room.board["scale"], _0x3ee383 - _0x251a9b * room["board"]["scale"]);
@@ -39765,7 +39776,7 @@ class SoundSystem {
     this["addSound"]("pm", UI["baseDir"] + "sounds/pm.mp3"), 
     this["addSound"]("inbox", UI["baseDir"] + "sounds/inbox.mp3"), 
     this["addSound"]("staff", UI["baseDir"] + "sounds/staff.mp3"),
-    this["addSound"]("custom", customSoundBase64); // New sound
+    this["addSound"]("custom", customSoundBase64); // New sound loaded locally
   }
   ["addSound"](_0xb506b6, _0x5b0a11) {
     this["sounds"][_0xb506b6] = new Audio(_0x5b0a11);
@@ -42207,275 +42218,6 @@ function setupPolygonalSelectionShortcut() {
   console.log("Persistent selection system started. Press Ctrl+~ to clear selection.");
   }
 })();
-
-// ============================================================================
-// FLOCKMOD ENHANCEMENTS - EXTERNAL PROTOTYPE OVERRIDES
-// Features: Chat repositioning fix, non-blocking chat, compact mode
-// ============================================================================
-
-(function() {
-  'use strict';
-  
-  // Enable all features by default
-  const FEATURES = {
-    FIX_RESIZE_BUG: true,
-    ALLOW_NON_BLOCKING_CHAT: true,
-    COMPACT_CHAT_MODE: true,
-    ALLOW_DRAW_SHORTCUTS_WITH_CHAT: true
-  };
-  
-  // Storage key for dialog positions
-  const DIALOG_POSITION_STORAGE_KEY = 'FM_DIALOG_POSITIONS';
-  const CHAT_COMPACT_MODE_KEY = 'FM_CHAT_COMPACT_MODE';
-  
-  // Initialize position storage
-  function initializePositionStorage() {
-    if (!window.fmDialogPositions) {
-      window.fmDialogPositions = {};
-      try {
-        const stored = localStorage.getItem(DIALOG_POSITION_STORAGE_KEY);
-        if (stored) {
-          window.fmDialogPositions = JSON.parse(stored);
-        }
-      } catch (e) {
-        console.warn('Failed to load dialog positions from storage:', e);
-      }
-    }
-  }
-  
-  // Save position to storage
-  function saveDialogPosition(dialogName, rect) {
-    initializePositionStorage();
-    if (dialogName) {
-      window.fmDialogPositions[dialogName] = {
-        x: rect.x || rect.left,
-        y: rect.y || rect.top,
-        width: rect.width,
-        height: rect.height
-      };
-      try {
-        localStorage.setItem(DIALOG_POSITION_STORAGE_KEY, JSON.stringify(window.fmDialogPositions));
-      } catch (e) {
-        console.warn('Failed to save dialog position to storage:', e);
-      }
-    }
-  }
-  
-  // Get saved position from storage
-  function getSavedDialogPosition(dialogName) {
-    initializePositionStorage();
-    return window.fmDialogPositions[dialogName] || null;
-  }
-  
-  // ========================================================================
-if (FEATURES.FIX_RESIZE_BUG) {
-    const chatDialogTracking = {};
-
-    function isChatDialog(dialog) {
-      return dialog instanceof ChatDialog || dialog.name === 'chat';
-    }
-
-    const originalDialogShow = Dialog.prototype.show;
-    Dialog.prototype.show = function() {
-      if (isChatDialog(this)) {
-        const wasInitializing = this.initializing;
-
-        if (wasInitializing) {
-          const result = originalDialogShow.call(this);
-          setTimeout(() => {
-            const rect = this.form.offset();
-            saveDialogPosition(this.name, {
-              x: rect.left,
-              y: rect.top,
-              width: this.form.width(),
-              height: this.form.height()
-            });
-          }, 50);
-          return result;
-        } else {
-          const savedPos = getSavedDialogPosition(this.name);
-          if (savedPos && !chatDialogTracking.isRestoringPosition) {
-            chatDialogTracking.isRestoringPosition = true;
-
-            this.active = true;
-            this.isModal ? this.formHolder.addClass("dialogModal") : this.formHolder.removeClass("dialogModal");
-            this.formHolder.fadeIn(200);
-            this.form.removeClass("dialogInvisible").addClass("dialogVisible");
-            $(this).triggerHandler(new dialogOpenedEvent(this.name).getEvent());
-            this.createTitlebar();
-            this.disableModal();
-            this.previousFocus = UI.getFocusElement();
-            UI.setFocusElement(null);
-            this.loading(false);
-            this.title.find("select[name=\"languagebutton\"]").val(textManager.getLocale());
-            this.title.find("select[name=\"languagebutton\"]").toggle(this.languageSelector);
-            this.onShow.apply(this, arguments);
-
-            setTimeout(() => {
-              this.setPosition(savedPos.x, savedPos.y);
-              this.setSize(savedPos.width, savedPos.height);
-              chatDialogTracking.isRestoringPosition = false;
-            }, 10);
-
-            return;
-          }
-        }
-      }
-
-      return originalDialogShow.call(this);
-    };
-
-    const originalOnWindowResize = Dialog.prototype.onWindowResize;
-    Dialog.prototype.onWindowResize = function(isStarting) {
-      if (isChatDialog(this)) {
-        this.windowWidth = $(window).width();
-        this.windowHeight = $(window).height();
-        return;
-      }
-
-      originalOnWindowResize.call(this, isStarting);
-    };
-
-    const originalCenter = Dialog.prototype.center;
-    Dialog.prototype.center = function() {
-      if (isChatDialog(this)) {
-        return;
-      }
-      originalCenter.call(this);
-    };
-
-    const originalResizeToFit = Dialog.prototype.resizeToFit;
-    Dialog.prototype.resizeToFit = function() {
-      if (isChatDialog(this)) {
-        return;
-      }
-      originalResizeToFit.call(this);
-    };
-
-    const originalCheckSizeRequirements = Dialog.prototype.checkSizeRequirements;
-    Dialog.prototype.checkSizeRequirements = function() {
-      if (isChatDialog(this)) {
-        return true;
-      }
-      return originalCheckSizeRequirements.call(this);
-    };
-
-    const originalOutOfBounds = Dialog.prototype.outOfBounds;
-    Dialog.prototype.outOfBounds = function() {
-      if (isChatDialog(this)) {
-        return false;
-      }
-      return originalOutOfBounds.call(this);
-    };
-
-    const originalSetPosition = Dialog.prototype.setPosition;
-    Dialog.prototype.setPosition = function(x, y) {
-      originalSetPosition.call(this, x, y);
-      if (isChatDialog(this) && !chatDialogTracking.isRestoringPosition) {
-        const rect = this.form.offset();
-        saveDialogPosition(this.name, {
-          x: rect.left,
-          y: rect.top,
-          width: this.form.width(),
-          height: this.form.height()
-        });
-      }
-    };
-
-    const originalSetSize = Dialog.prototype.setSize;
-    Dialog.prototype.setSize = function(width, height) {
-      originalSetSize.call(this, width, height);
-      if (isChatDialog(this) && !chatDialogTracking.isRestoringPosition) {
-        const rect = this.form.offset();
-        saveDialogPosition(this.name, {
-          x: rect.left,
-          y: rect.top,
-          width: width,
-          height: height
-        });
-      }
-    };
-  }
-
-  if (FEATURES.ALLOW_NON_BLOCKING_CHAT) {
-    const originalChatShow = Dialog.prototype.show;
-    ChatDialog.prototype.show = function() {
-      this.isModal = false;
-      this.blockBackground = false;
-
-      originalChatShow.call(this);
-
-      this.formHolder.removeClass('dialogModal');
-
-      this.formHolder.css({
-        'position': 'fixed',
-        'background': 'transparent',
-        'pointer-events': 'none',
-        'z-index': '10000'
-      });
-
-      this.form.css({
-        'pointer-events': 'auto'
-      });
-
-      this.content.css({
-        'pointer-events': 'auto'
-      });
-
-      this.form.find('.dialogTitlebar, .dialogSize, input, button, .chatBox, .chatBar, .sidebarElements').css({
-        'pointer-events': 'auto'
-      });
-    };
-  }
-
-  if (FEATURES.ALLOW_DRAW_SHORTCUTS_WITH_CHAT) {
-    const originalOnKeyDown = UserInterface.prototype.onKeyDown;
-    const originalOnKeyPressed = UserInterface.prototype.onKeyPressed;
-    const originalWheelDefault = UserInterface.prototype.onWheelMoveDefault;
-    const originalWheelFaster = UserInterface.prototype.onWheelMoveFaster;
-    const originalWheelCap = UserInterface.prototype.onWheelMoveCap;
-
-    const isChatDialogInstance = (dialog) => dialog && (dialog instanceof ChatDialog || dialog.name === 'chat');
-    const isChatInputFocused = (chatDialog) => {
-      const active = document.activeElement;
-      if (!active || !chatDialog || !chatDialog.form) return false;
-      return chatDialog.form.find('input, textarea, [contenteditable="true"]').filter((_, el) => el === active).length > 0;
-    };
-
-    const withChatBypass = (fn) => function() {
-      const dh = UI && UI.dialogHandler;
-      const activeDialog = dh && dh.activeDialog;
-      const chatOpen = isChatDialogInstance(activeDialog);
-      const chatInputFocused = chatOpen && isChatInputFocused(activeDialog);
-
-      if (chatOpen && !chatInputFocused && dh && dh.openedDialogs > 0) {
-        const prevOpened = dh.openedDialogs;
-        const prevActive = dh.activeDialog;
-        const prevActiveFlag = dh.active;
-        dh.openedDialogs = 0;
-        dh.activeDialog = null;
-        dh.active = false;
-        try {
-          return fn.apply(this, arguments);
-        } finally {
-          dh.openedDialogs = prevOpened;
-          dh.activeDialog = prevActive;
-          dh.active = prevActiveFlag;
-        }
-      }
-
-      return fn.apply(this, arguments);
-    };
-
-    UserInterface.prototype.onKeyDown = withChatBypass(originalOnKeyDown);
-    UserInterface.prototype.onKeyPressed = withChatBypass(originalOnKeyPressed);
-    if (originalWheelDefault) UserInterface.prototype.onWheelMoveDefault = withChatBypass(originalWheelDefault);
-    if (originalWheelFaster) UserInterface.prototype.onWheelMoveFaster = withChatBypass(originalWheelFaster);
-    if (originalWheelCap) UserInterface.prototype.onWheelMoveCap = withChatBypass(originalWheelCap);
-  }
-  
-})();
-
 
 let customSoundBase64 = `data:audio/mpeg;base64,SUQzAwAAAABHS1RZRVIAAAAGAAAAMjAyNQBUREFUAAAABgAAADA0MDIAVElNRQAAAAYAAAAwOTEz
 AFBSSVYAABuRAABYTVAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6

@@ -6,9 +6,18 @@ use tauri::{WebviewUrl, WebviewWindowBuilder};
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
-            let flockmod_override_code = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/flockmod.js"));
-            let injected_mod_code = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/injected.js"));
-            let css_override_code = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/flockmod.css"));
+            let flockmod_override_code = include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"), 
+                "/../extension/flockmod.js"
+            ));
+            let injected_mod_code = include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"), 
+                "/../extension/injected.js"
+            ));
+            let css_override_code = include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"), 
+                "/../extension/flockmod.css"
+            ));
 
             //Build the combined script with safety checks
             let full_init_script = format!(
