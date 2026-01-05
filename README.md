@@ -1,7 +1,7 @@
 # Flockmod Desktop App
 
 A lightweight desktop wrapper for Flockmod using [Tauri](https://tauri.app), featuring custom modifications and enhancements for an improved drawing experience.
-
+![A screenshot of the new mod menu](images/mod_menu.png)
 ## Overview
 
 This Tauri-based application provides a native desktop experience for Flockmod with a dramatically reduced installation size:
@@ -16,16 +16,16 @@ Tauri leverages Windows' built-in WebView2 browser, enabling excellent performan
 Access the mod settings menu via the crown icon in the top navigation bar.
 
 **Main Features:**
-- **Modded User Network**: Connect to a private server to identify and sync preferentially with other modded users (shown with a crown icon in the user list)
-- **Priority Sync System**: Configure a list of usernames to prioritize syncing with first
-- **Custom CSS Support**: Apply persistent custom CSS styling to personalize your Flockmod app
+- **Modded User Network**: Connect to a private server to see and sync preferentially with other modded users
+- **Priority Sync List**: Configure a list of usernames to prioritize syncing with first
+- **Custom Theme**: A new default theme of dark blue and orange - can be toggled off in the options
 - **Troll Detection**: Automatic detection with custom sound alert and flashing visual highlighting in the userlist
+- **Custom CSS Support**: Apply persistent custom CSS styling to personalize your Flockmod app however you like
 - **Auto XL Resolution**: Automatically sets board size to 2160x1920 in XL rooms
 
-### Enhanced User Experience
-- **Improved Connection Monitoring**: More reliable reconnection and session persistence
 - **Persistent Settings**: All mod configurations are saved between sessions
 
+### *A large number of tweaks in Zexium's mod menu, at the bottom right of the board, specified below*
 ---
 
 ## Zexium's Flockmod Enhancements
