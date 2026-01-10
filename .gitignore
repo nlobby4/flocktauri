@@ -15,6 +15,7 @@ out/
 
 # Tauri build outputs
 src-tauri/target/
+src-tauri/gen/
 
 # OS specific files
 .DS_Store
