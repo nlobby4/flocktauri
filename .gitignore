@@ -1,3 +1,7 @@
+# Android signing secrets
+*.jks
+keystore.properties
+
 # Build
 build/
 

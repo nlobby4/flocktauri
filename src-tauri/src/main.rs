@@ -1,11 +1,18 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
+            
+            #[cfg(debug_assertions)]
+            {
+                if let Some(window) = app.get_webview_window("flockmod-window") {
+                    let _ = window.open_devtools();
+                }
+            }
             let flockmod_override_code = include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"), 
                 "/../extension/flockmod.js"
