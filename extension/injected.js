@@ -1300,7 +1300,7 @@ function setupUI() {
     const newButtonHTML = `
         <li class="nav-item" data-tooltipcallback="tooltipShortcut" data-tooltipparam="${buttonConfig.param}">
             <a name="${buttonConfig.name}" class="nav-link" href="#">
-                <i style="color: var(--bs-primary)" class="fas ${buttonConfig.icon}"></i>
+                <i style="color: #ff8c42" class="fas ${buttonConfig.icon}"></i>
                 <span class="d-lg-none">
                     <span data-i18n="tooltip.lbl${buttonConfig.param}"></span>
                 </span>
@@ -3471,226 +3471,6 @@ tbody#userlist > tr.myself{
     background: var(--bs-primary) !important;
 }
 
-/* switch between the Zexium menu and the D menu, pinned to the bottom of each sidebar */
-.dialog[name="mods"] .sidebar,
-.dialog[name="modD"] .sidebar{
-    display: flex !important;
-    flex-direction: column;
-}
-.dMenuSwitch{
-    margin-top: auto;
-    display: block;
-    width: 100%;
-    padding: 8px 10px;
-    border: none;
-    border-radius: 4px;
-    background-color: var(--bs-primary);
-    color: #fff;
-    font-size: 13px;
-    font-weight: normal;
-    text-align: left;
-    cursor: pointer;
-}
-/* Zexium's "D mod settings" button: crown on top, label on one line under it */
-.dMenuSwitch[name="openDMenu"]{
-    text-align: center;
-    white-space: nowrap;
-    font-size: 12px;
-    padding: 8px 4px;
-}
-.dMenuSwitch[name="openDMenu"] i{
-    display: block;
-    margin-bottom: 4px;
-    font-size: 16px;
-}
-.dMenuSwitch:hover{
-    filter: brightness(1.15);
-}
-
-/* crown (D mod settings) button: bob + glow, and a hint bubble */
-@keyframes dCrownBob{
-    0%, 100%{ transform: translateY(0) rotate(0deg); filter: drop-shadow(0 0 0 rgba(var(--bs-primary-rgb), 0)); }
-    25%{ transform: translateY(-3px) rotate(-8deg); }
-    50%{ transform: translateY(0) rotate(0deg); filter: drop-shadow(0 0 6px rgba(var(--bs-primary-rgb), 0.9)); }
-    75%{ transform: translateY(-2px) rotate(8deg); }
-}
-@keyframes dCrownWiggle{
-    0%{ transform: rotate(0deg) scale(1); }
-    10%{ transform: rotate(-18deg) scale(1.15); }
-    25%{ transform: rotate(16deg) scale(1.15); }
-    40%{ transform: rotate(-12deg) scale(1.1); }
-    55%{ transform: rotate(9deg) scale(1.05); }
-    70%{ transform: rotate(-5deg); }
-    85%{ transform: rotate(3deg); }
-    100%{ transform: rotate(0deg) scale(1); }
-}
-.dCrownWiggle{
-    display: inline-block;
-    transform-origin: 50% 80%;
-    animation: dCrownWiggle 0.9s ease-in-out !important;
-}
-.dCrownAnimate{
-    display: inline-block;
-    animation: dCrownBob 1.6s ease-in-out 3; /* about 5 seconds, then it stops */
-}
-.dCrownHint{
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100000;
-    white-space: nowrap;
-    padding: 6px 10px;
-    border-radius: 6px;
-    background-color: var(--bs-primary);
-    color: #fff;
-    font-size: 0.8rem;
-    font-weight: 600;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    pointer-events: none;
-    animation: dCrownHintIn 0.35s ease-out;
-    transition: opacity 0.6s ease;
-}
-.dCrownHint::before{
-    content: "";
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 6px solid transparent;
-    border-bottom-color: var(--bs-primary);
-}
-.dCrownHint.dCrownHintOut{
-    opacity: 0;
-}
-@keyframes dCrownHintIn{
-    from{ opacity: 0; transform: translate(-50%, -4px); }
-    to{ opacity: 1; transform: translate(-50%, 0); }
-}
-
-/* login window: rank legend and theme hint */
-.dRankLegend{
-    pointer-events: auto;
-    position: fixed;
-    z-index: 100000;
-    width: 150px;
-    padding: 10px 12px;
-    border-radius: 6px;
-    background-color: #1a2631;
-    border: 1px solid #212e3b;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-    font-size: 0.8rem;
-}
-.dRankLegendTitle{
-    font-size: 0.75rem;
-    color: #95a5a6;
-    margin-bottom: 6px;
-}
-.dRankItem{
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 3px 0;
-}
-.dRankSwatch{
-    flex: 0 0 10px;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: currentColor;
-}
-.dRankItem.dRankUU{ color: #bdbdbd; }
-.dRankItem.dRankRU{ color: #fff; }
-.dRankItem.dRankTU{ color: #ffda35; }
-.dRankItem.dRankRM{ color: #1db924; }
-.dRankItem.dRankFM{ color: #2bd3e6; }
-.dRankItem.dRankLM{ color: #3981c4; }
-.dRankItem.dRankRO{ color: #ff8725; }
-.dRankItem.dRankGM{ color: #ff20da; }
-.dThemeHint{
-    pointer-events: auto;
-    position: fixed;
-    z-index: 100000;
-    width: 220px;
-    padding: 10px 28px 10px 12px;
-    border-radius: 6px;
-    background-color: #1a2631;
-    border: 1px solid var(--bs-primary);
-    color: #ecf0f1;
-    font-size: 0.8rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-}
-.dThemeHint a{
-    cursor: pointer !important;
-    color: var(--bs-primary);
-    text-decoration: underline;
-}
-.dThemeHintClose{
-    position: absolute;
-    top: 2px;
-    right: 6px;
-    border: none;
-    background: none;
-    color: #95a5a6;
-    font-size: 1rem;
-    line-height: 1;
-    cursor: pointer !important;
-}
-.dThemeHintClose:hover{
-    color: #fff;
-}
-
-.dNote{
-    pointer-events: auto;
-    position: fixed;
-    z-index: 100000;
-    width: 280px;
-    overflow-y: auto;
-    padding: 12px 14px;
-    border-radius: 6px;
-    background-color: #1a2631;
-    border: 1px solid #212e3b;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-    color: #ecf0f1;
-    font-size: 0.78rem;
-    line-height: 1.45;
-}
-.dNoteHeader{
-    display: flex;
-    gap: 8px;
-    align-items: baseline;
-    cursor: pointer;
-    user-select: none;
-}
-.dNoteTitle{
-    color: var(--bs-primary);
-    font-weight: 600;
-}
-.dNoteCaret{
-    color: var(--bs-primary);
-    font-size: 0.7rem;
-    transition: transform 0.2s ease;
-}
-.dNote.collapsed .dNoteCaret{
-    transform: rotate(-90deg);
-}
-.dNoteBody{
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid #212e3b;
-}
-.dNote.collapsed .dNoteBody{
-    display: none;
-}
-.dNote p{
-    margin: 0 0 8px;
-}
-.dNote p:last-child{
-    margin-bottom: 0;
-}
-.dNote::-webkit-scrollbar{ width: 6px; }
-.dNote::-webkit-scrollbar-thumb{ background: #34495e; border-radius: 3px; }
-
 /* gallery tag buttons (13.5.7); colours from FlockMod's dark theme */
 .badge-gallerytag{
     background-color: #44454a;
@@ -5586,6 +5366,236 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAyMDI1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==
 `;
 
 let customSound = new Audio(customSoundString);
+
+// D's own UI (menu switch buttons, crown animation, login window extras). Always loaded, with
+// fixed colours, so it looks the same whether or not the default theme override is on.
+const dUiCss = `
+/* switch between the Zexium menu and the D menu, pinned to the bottom of each sidebar */
+.dialog[name="mods"] .sidebar,
+.dialog[name="modD"] .sidebar{
+    display: flex !important;
+    flex-direction: column;
+}
+.dMenuSwitch{
+    margin-top: auto;
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 4px;
+    background-color: #ff8c42;
+    color: #fff;
+    font-size: 13px;
+    font-weight: normal;
+    text-align: left;
+    cursor: pointer;
+}
+/* Zexium's "D mod settings" button: crown on top, label on one line under it */
+.dMenuSwitch[name="openDMenu"]{
+    text-align: center;
+    white-space: nowrap;
+    font-size: 12px;
+    padding: 8px 4px;
+}
+.dMenuSwitch[name="openDMenu"] i{
+    display: block;
+    margin-bottom: 4px;
+    font-size: 16px;
+}
+.dMenuSwitch:hover{
+    filter: brightness(1.15);
+}
+
+/* crown (D mod settings) button: bob + glow, and a hint bubble */
+@keyframes dCrownBob{
+    0%, 100%{ transform: translateY(0) rotate(0deg); filter: drop-shadow(0 0 0 rgba(255, 140, 66, 0)); }
+    25%{ transform: translateY(-3px) rotate(-8deg); }
+    50%{ transform: translateY(0) rotate(0deg); filter: drop-shadow(0 0 6px rgba(255, 140, 66, 0.9)); }
+    75%{ transform: translateY(-2px) rotate(8deg); }
+}
+@keyframes dCrownWiggle{
+    0%{ transform: rotate(0deg) scale(1); }
+    10%{ transform: rotate(-18deg) scale(1.15); }
+    25%{ transform: rotate(16deg) scale(1.15); }
+    40%{ transform: rotate(-12deg) scale(1.1); }
+    55%{ transform: rotate(9deg) scale(1.05); }
+    70%{ transform: rotate(-5deg); }
+    85%{ transform: rotate(3deg); }
+    100%{ transform: rotate(0deg) scale(1); }
+}
+.dCrownWiggle{
+    display: inline-block;
+    transform-origin: 50% 80%;
+    animation: dCrownWiggle 0.9s ease-in-out !important;
+}
+.dCrownAnimate{
+    display: inline-block;
+    animation: dCrownBob 1.6s ease-in-out 3; /* about 5 seconds, then it stops */
+}
+.dCrownHint{
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100000;
+    white-space: nowrap;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background-color: #ff8c42;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+    animation: dCrownHintIn 0.35s ease-out;
+    transition: opacity 0.6s ease;
+}
+.dCrownHint::before{
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-bottom-color: #ff8c42;
+}
+.dCrownHint.dCrownHintOut{
+    opacity: 0;
+}
+@keyframes dCrownHintIn{
+    from{ opacity: 0; transform: translate(-50%, -4px); }
+    to{ opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* login window: rank legend and theme hint */
+.dRankLegend{
+    pointer-events: auto;
+    position: fixed;
+    z-index: 100000;
+    width: 150px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background-color: #1a2631;
+    border: 1px solid #212e3b;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    font-size: 0.8rem;
+}
+.dRankLegendTitle{
+    font-size: 0.75rem;
+    color: #95a5a6;
+    margin-bottom: 6px;
+}
+.dRankItem{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+}
+.dRankSwatch{
+    flex: 0 0 10px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: currentColor;
+}
+.dRankItem.dRankUU{ color: #bdbdbd; }
+.dRankItem.dRankRU{ color: #fff; }
+.dRankItem.dRankTU{ color: #ffda35; }
+.dRankItem.dRankRM{ color: #1db924; }
+.dRankItem.dRankFM{ color: #2bd3e6; }
+.dRankItem.dRankLM{ color: #3981c4; }
+.dRankItem.dRankRO{ color: #ff8725; }
+.dRankItem.dRankGM{ color: #ff20da; }
+.dThemeHint{
+    pointer-events: auto;
+    position: fixed;
+    z-index: 100000;
+    width: 220px;
+    padding: 10px 28px 10px 12px;
+    border-radius: 6px;
+    background-color: #1a2631;
+    border: 1px solid #ff8c42;
+    color: #ecf0f1;
+    font-size: 0.8rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.dThemeHint a{
+    cursor: pointer !important;
+    color: #ff8c42;
+    text-decoration: underline;
+}
+.dThemeHintClose{
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    border: none;
+    background: none;
+    color: #95a5a6;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer !important;
+}
+.dThemeHintClose:hover{
+    color: #fff;
+}
+
+.dNote{
+    pointer-events: auto;
+    position: fixed;
+    z-index: 100000;
+    width: 280px;
+    overflow-y: auto;
+    padding: 12px 14px;
+    border-radius: 6px;
+    background-color: #1a2631;
+    border: 1px solid #212e3b;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    color: #ecf0f1;
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+.dNoteHeader{
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    cursor: pointer;
+    user-select: none;
+}
+.dNoteTitle{
+    color: #ff8c42;
+    font-weight: 600;
+}
+.dNoteCaret{
+    color: #ff8c42;
+    font-size: 0.7rem;
+    transition: transform 0.2s ease;
+}
+.dNote.collapsed .dNoteCaret{
+    transform: rotate(-90deg);
+}
+.dNoteBody{
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #212e3b;
+}
+.dNote.collapsed .dNoteBody{
+    display: none;
+}
+.dNote p{
+    margin: 0 0 8px;
+}
+.dNote p:last-child{
+    margin-bottom: 0;
+}
+.dNote::-webkit-scrollbar{ width: 6px; }
+.dNote::-webkit-scrollbar-thumb{ background: #34495e; border-radius: 3px; }
+`;
+(function injectDUiCss() {
+    const style = document.createElement("style");
+    style.id = "dUiCss";
+    style.textContent = dUiCss;
+    (document.head || document.documentElement).appendChild(style);
+})();
 
 // flockmoD wordmark: FM 13.5.7 draws the brand as an SVG ("Flock" + a grey "Mod" path), so the
 // "D" can't be recolored in place. Swap each wordmark SVG for text with an orange capital D.
