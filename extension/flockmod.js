@@ -56271,16 +56271,10 @@ class CmdBYE extends CommandHandler {
   }
 }
 class CmdFAILED extends CommandHandler {
+  // mod: the server refuses stray broadcasts (e.g. brush settings re-sent around leaving a room);
+  // they are harmless, so no "That did not go through" popup or console warning
   execute(message) {
-    console.warn(
-      "The server refused " + message.source + (message.option ? "." + message.option : ""),
-    );
     this.UI.dialogHandler.clearLoading();
-    this.UI.dialogHandler.showAlert(
-      new Icon("fa-exclamation-triangle").html() +
-        " " +
-        this.textManager.getString("alerts.txtCommandFailed"),
-    );
   }
 }
 class CommandRegistry {

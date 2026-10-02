@@ -5622,28 +5622,3 @@ const dUiCss = `
     replace();
     new MutationObserver(replace).observe(document.documentElement, { childList: true, subtree: true });
 })();
-
-// TEMP DIAGNOSTIC (remove once the leave-room "server refused" popups are fixed):
-// logs a stack for anything sent while not in a room.
-(function leaveRoomSendTrap() {
-    const install = () => {
-        if (typeof FrameBuffer === "undefined" || typeof Socket === "undefined" || !window.UI || typeof room === "undefined") return setTimeout(install, 500);
-        let leftAt = 0;
-        $(room).on("roomDisconnected youLeft", () => { leftAt = Date.now(); console.warn("[TRAP] left room"); });
-        const suspicious = () => !UI.inRoom || Date.now() - leftAt < 5000;
-        const where = () => new Error().stack.split("\n").slice(3, 12).map(s => s.trim()).join("\n    ");
-        const ob = FrameBuffer.prototype.outBuffer;
-        FrameBuffer.prototype.outBuffer = function (d, ...rest) {
-            if (suspicious()) console.warn("[TRAP] outBuffer while not in room: " + String(d).slice(0, 80) + "\n    " + where());
-            return ob.call(this, d, ...rest);
-        };
-        const ss = Socket.prototype.send;
-        Socket.prototype.send = function (d, ...rest) {
-            const s = typeof d === "string" ? d : JSON.stringify(d);
-            if (suspicious() && /"command":"(BC|DIRECT)"/.test(s)) console.warn("[TRAP] socket.send while not in room: " + s.slice(0, 100) + "\n    " + where());
-            return ss.call(this, d, ...rest);
-        };
-        console.log("[TRAP] leave-room send trap installed");
-    };
-    install();
-})();

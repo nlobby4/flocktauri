@@ -53,3 +53,4 @@ yarn-error.log*
 # extra Tauri build dirs (parallel builds while an instance is running)
 src-tauri/target-*/
 release-1.5.0/
+release-1.5.1/
