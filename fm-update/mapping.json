@@ -1,0 +1,3248 @@
+{
+ "mapping": {
+  "v1_0": "BrushStub",
+  "v1_1": "BrushDrag",
+  "v1_2": "BrushRotate",
+  "v1_3": "BrushPicker",
+  "v1_4": "BrushSelection",
+  "v1_5": "BrushEraser",
+  "v1_6": "BrushHandler",
+  "v1_7": "BrushOption",
+  "v1_8": "BlendModeOption",
+  "v1_9": "AlphaOption",
+  "v1_10": "SizeOption",
+  "v1_11": "BlurOption",
+  "v1_12": "SmoothOption",
+  "v1_13": "SpacingOption",
+  "v1_14": "MultilayerOption",
+  "v1_15": "SelectionTypeOption",
+  "v1_16": "GalleryOption",
+  "v1_17": "CustomizeOption",
+  "v1_18": "PressureOption",
+  "v1_19": "AreaAverageOption",
+  "v1_20": "EraserModeOption",
+  "v1_21": "AspectRatioOption",
+  "v1_22": "SnapOption",
+  "v1_23": "DrawGridOption",
+  "v1_24": "FontOption",
+  "v1_25": "FillOption",
+  "v1_26": "AllowedLayersOption",
+  "v1_27": "ImageOption",
+  "v1_28": "CursorOption",
+  "v1_31": "TintOption",
+  "v1_32": "RandomRotationOption",
+  "v1_33": "RotationValueOption",
+  "v1_34": "RightClickOption",
+  "v1_35": "BrushPen",
+  "v1_36": "BrushText",
+  "v1_37": "BrushRect",
+  "v1_38": "BrushLine",
+  "v1_39": "BrushEllipse",
+  "v1_40": "BrushFill",
+  "v1_41": "BrushBlend",
+  "v1_42": "BrushCustom",
+  "v1_43": "BrushBlur",
+  "v1_44": "BrushPixel",
+  "v1_45": "Component",
+  "v1_46": "UIComponent",
+  "v1_47": "Slider",
+  "v1_48": "SliderCheck",
+  "v1_49": "Button",
+  "v1_50": "List",
+  "v1_51": "Switch",
+  "v1_52": "Checkbox",
+  "v1_53": "Pagination",
+  "v1_54": "Table",
+  "v1_55": "ShortcutManager",
+  "v1_56": "ShortcutObject",
+  "v1_57": "LayerPreview",
+  "v1_58": "AnimationOptions",
+  "v1_59": "UserList",
+  "v1_60": "Toolbar",
+  "v1_61": "PresetBox",
+  "v1_62": "PresetGrid",
+  "v1_63": "ColorBubble",
+  "v1_64": "ColorGrid",
+  "v1_65": "ColorWheel",
+  "v1_66": "ColorBox",
+  "v1_67": "SidebarContainer",
+  "v1_68": "ToolOptions",
+  "v1_69": "Uploader",
+  "v1_70": "UploaderImages",
+  "v1_71": "FloatingToolbar",
+  "v1_72": "Tooltip",
+  "v1_73": "Resizer",
+  "v1_74": "MousePointer",
+  "v1_75": "SelectionTool",
+  "v1_76": "Topbar",
+  "v1_77": "Bottombar",
+  "v1_78": "Sidebar",
+  "v1_79": "EmojiSelector",
+  "v1_80": "UserTag",
+  "v1_81": "ProgressBar",
+  "v1_82": "RadialMenu",
+  "v1_83": "NumericInput",
+  "v1_84": "Selector",
+  "v1_85": "SortableList",
+  "v1_87": "ColorSelector",
+  "v1_88": "AlertManager",
+  "v1_89": "PIP",
+  "v1_94": "DialogHandler",
+  "v1_95": "Dialog",
+  "v1_96": "SubDialog",
+  "v1_97": "ConfigDialog",
+  "v1_98": "LoginDialog",
+  "v1_99": "ChatDialog",
+  "v1_100": "ChatChannel",
+  "v1_101": "UndoDialog",
+  "v1_102": "RoomManagerDialog",
+  "v1_103": "RoomManagerSettingsSubDialog",
+  "v1_104": "RoomManagerStaffSubDialog",
+  "v1_105": "RoomManagerPrivilegesSubDialog",
+  "v1_106": "RoomManagerToolsSubDialog",
+  "v1_107": "RoomManagerBansSubDialog",
+  "v1_110": "SaveDialog",
+  "v1_111": "UploadDialog",
+  "v1_112": "BrushDesignerDialog",
+  "v1_113": "BrushGalleryDialog",
+  "v1_114": "DebugDialog",
+  "v1_116": "ProfileDialog",
+  "v1_117": "ColorDialog",
+  "v1_118": "HelpDialog",
+  "v1_119": "FeedbackDialog",
+  "v1_121": "AnimationDialog",
+  "v1_122": "MessengerDialog",
+  "v1_124": "GalleryImageDialog",
+  "v1_127": "AdminConsoleDialog",
+  "v1_132": "AdminConsoleRoomsSubDialog",
+  "v1_133": "AdminConsoleUsersSubDialog",
+  "v1_131": "AdminConsoleClientsSubDialog",
+  "v1_134": "AdminConsoleBansSubDialog",
+  "v1_135": "AdminConsoleEventsSubDialog",
+  "v1_136": "AdminConsoleFeedbackSubDialog",
+  "v1_130": "AdminConsoleSystemSubDialog",
+  "v1_129": "AdminConsoleSummarySubDialog",
+  "v1_137": "log",
+  "v1_138": "GetVariable",
+  "v1_139": "rgb2obj",
+  "v1_140": "rgb2hex",
+  "v1_141": "hex2rgb",
+  "v1_142": "rgb2hsl",
+  "v1_143": "hsl2rgb",
+  "v1_144": "rgb2hsv",
+  "v1_145": "hsv2rgb",
+  "v1_146": "isHexColor",
+  "v1_147": "sizeToName",
+  "v1_148": "cropImage",
+  "v1_150": "getLimits",
+  "v1_151": "imagedataEqual",
+  "v1_153": "getPixelIndex",
+  "v1_154": "getPixel",
+  "v1_155": "blurPercentage",
+  "v1_157": "yesnoFunction",
+  "v1_158": "lassoRectFunction",
+  "v1_159": "canvas2blob",
+  "v1_160": "tooltipShortcut",
+  "v1_161": "tooltipText",
+  "v1_162": "colorBubbleTooltip",
+  "v1_163": "presetBubbleTooltip",
+  "v1_164": "openBrushDesigner",
+  "v1_165": "openBrushGallery",
+  "v1_167": "angleSnap",
+  "v1_168": "rot13",
+  "v1_169": "encryptMessage",
+  "v1_170": "decryptMessage",
+  "v1_171": "firstMatch",
+  "v1_172": "processSizes",
+  "v1_173": "formatHour",
+  "v1_174": "formatTimestamp",
+  "v1_175": "formatSeconds",
+  "v1_176": "dateToObj",
+  "v1_177": "formatDateString",
+  "v1_178": "hash",
+  "v1_179": "getNewListOfObjects",
+  "v1_180": "getNewObject",
+  "v1_181": "calculateAspectRatioFit",
+  "v1_183": "getRadialAvg",
+  "v1_184": "leadingZeros",
+  "v1_185": "loopValue",
+  "v1_186": "parseURL",
+  "v1_187": "nl2br",
+  "v1_188": "shortcutToKeys",
+  "v1_190": "isValidIP",
+  "v1_191": "getExtension",
+  "v1_192": "randomElement",
+  "v1_193": "rgba2rgb",
+  "v1_194": "escapeHTML",
+  "v1_195": "unescapeHTML",
+  "v1_196": "matches",
+  "v1_197": "inArray",
+  "v1_198": "getRoomFromURL",
+  "v1_199": "isIPv4",
+  "v1_201": "getLengthDescription",
+  "v1_202": "formatNumber",
+  "v1_203": "setCaretPosition",
+  "v1_204": "getCaretPosition",
+  "v1_209": "UserPreferences",
+  "v1_210": "Transfer",
+  "v1_211": "rejectTransfer",
+  "v1_212": "processTransfer",
+  "v1_213": "transferFail",
+  "v1_214": "transferComplete",
+  "v1_215": "transferLayerComplete",
+  "v1_216": "transferProgress",
+  "v1_217": "sendChunk",
+  "v1_218": "TransferLayer",
+  "v1_220": "LocalStorage",
+  "v1_221": "AdvancedCanvas",
+  "v1_222": "Layer",
+  "v1_223": "Board",
+  "v1_224": "Cursor",
+  "v1_225": "FMEvent",
+  "v1_226": "checkboxChangeEvent",
+  "v1_227": "checkboxChangedEvent",
+  "v1_228": "buttonClickedEvent",
+  "v1_230": "listChangedEvent",
+  "v1_231": "sliderChangeEvent",
+  "v1_232": "sliderChangedEvent",
+  "v1_233": "sliderCheckChangeEvent",
+  "v1_234": "sliderCheckChangedEvent",
+  "v1_235": "sliderMovedEvent",
+  "v1_236": "transferStartEvent",
+  "v1_237": "slateUseChangedEvent",
+  "v1_238": "uploadModeChangedEvent",
+  "v1_239": "transferLayerCompleteEvent",
+  "v1_240": "transferCompleteEvent",
+  "v1_241": "transferProgressEvent",
+  "v1_242": "transferFailEvent",
+  "v1_243": "transferChunkReadyEvent",
+  "v1_244": "usernameChangedEvent",
+  "v1_245": "statusChangedEvent",
+  "v1_246": "rankChangedEvent",
+  "v1_247": "connectionIssueChangedEvent",
+  "v1_248": "muteChangedEvent",
+  "v1_249": "muteTimerStartedEvent",
+  "v1_250": "silenceChangedEvent",
+  "v1_251": "ignoreChangedEvent",
+  "v1_252": "userIgnoredEvent",
+  "v1_253": "userUnignoredEvent",
+  "v1_254": "inactiveChangedEvent",
+  "v1_256": "inputDeviceChangedEvent",
+  "v1_257": "scaleChangedEvent",
+  "v1_258": "rotationChangedEvent",
+  "v1_259": "roomChangedEvent",
+  "v1_260": "roomTypeChangedEvent",
+  "v1_261": "roomPrivilegesChangedEvent",
+  "v1_262": "roomToolsChangedEvent",
+  "v1_263": "canvasSizeChangeEvent",
+  "v1_264": "canvasSizeChangedEvent",
+  "v1_265": "imageChangedEvent",
+  "v1_266": "silhouetteChangedEvent",
+  "v1_267": "backgroundColorChangedEvent",
+  "v1_268": "bottomLayerTransparencyChangedEvent",
+  "v1_269": "roomConnectedEvent",
+  "v1_270": "roomDisconnectedEvent",
+  "v1_271": "layerCountChangedEvent",
+  "v1_272": "layerCountChangeEvent",
+  "v1_273": "layerChangedEvent",
+  "v1_274": "layerSelectedEvent",
+  "v1_275": "slatePriorityChangedEvent",
+  "v1_276": "penDownEvent",
+  "v1_277": "penUpEvent",
+  "v1_278": "penMoveEvent",
+  "v1_279": "penCancelEvent",
+  "v1_280": "penHideEvent",
+  "v1_281": "penShowEvent",
+  "v1_282": "keyPressEvent",
+  "v1_283": "modifierDownEvent",
+  "v1_284": "modifierUpEvent",
+  "v1_285": "brushParameterEvent",
+  "v1_286": "clearLayerEvent",
+  "v1_287": "layerActionRequestEvent",
+  "v1_288": "userActionRequestEvent",
+  "v1_289": "flipLayerEvent",
+  "v1_290": "mergeLayerEvent",
+  "v1_291": "colorChangedEvent",
+  "v1_292": "brushChangedEvent",
+  "v1_293": "brushOptionChangedEvent",
+  "v1_294": "brushOptionReadOnlyEvent",
+  "v1_295": "userJoinedEvent",
+  "v1_296": "userLeavingEvent",
+  "v1_297": "userLeftEvent",
+  "v1_298": "youLeftEvent",
+  "v1_299": "confirmationClosedEvent",
+  "v1_300": "floatingToolbarOpenedEvent",
+  "v1_301": "floatingToolbarClosedEvent",
+  "v1_302": "uploaderOpenedEvent",
+  "v1_303": "uploaderClosedEvent",
+  "v1_304": "dialogOpenedEvent",
+  "v1_305": "dialogClosedEvent",
+  "v1_306": "dialogModalEnabledEvent",
+  "v1_307": "dialogModalDisabledEvent",
+  "v1_308": "dialogContentChangedEvent",
+  "v1_309": "dialogSizeTypeChangedEvent",
+  "v1_310": "windowResizingStartedEvent",
+  "v1_311": "windowResizingEndedEvent",
+  "v1_312": "dialogResizingStartedEvent",
+  "v1_313": "dialogResizingEndedEvent",
+  "v1_314": "dialogDraggingStartedEvent",
+  "v1_315": "dialogDraggingEndedEvent",
+  "v1_316": "dialogMaximizedEvent",
+  "v1_317": "dialogRestoredEvent",
+  "v1_318": "layerFlippedEvent",
+  "v1_319": "layerClearedEvent",
+  "v1_320": "layerLockedEvent",
+  "v1_321": "layerUnlockedEvent",
+  "v1_322": "optionSelectedEvent",
+  "v1_323": "viewFlippedEvent",
+  "v1_324": "elementResizedEvent",
+  "v1_325": "shortcutPressedEvent",
+  "v1_326": "shortcutReleasedEvent",
+  "v1_327": "pageSelectedEvent",
+  "v1_328": "tableRowSelectedEvent",
+  "v1_329": "tableRowUnselectedEvent",
+  "v1_330": "tableRowDoubleClickEvent",
+  "v1_331": "socketConnectedEvent",
+  "v1_332": "socketDisconnectedEvent",
+  "v1_333": "socketErrorEvent",
+  "v1_334": "socketNegotiatedEvent",
+  "v1_335": "buttonPressedEvent",
+  "v1_336": "bubbleClickedEvent",
+  "v1_337": "layerOptionClickedEvent",
+  "v1_338": "windowFocusedEvent",
+  "v1_339": "windowBlurredEvent",
+  "v1_340": "emojiSelectedEvent",
+  "v1_341": "processFinishedEvent",
+  "v1_342": "imageLoadedEvent",
+  "v1_343": "fileLoadedEvent",
+  "v1_344": "localeChangedEvent",
+  "v1_345": "unreadMessagesEvent",
+  "v1_347": "chatChannelPropertyChangedEvent",
+  "v1_348": "sidebarCollapsedEvent",
+  "v1_349": "sidebarUncollapsedEvent",
+  "v1_350": "elementCollapsedEvent",
+  "v1_351": "elementHeightChangedEvent",
+  "v1_352": "elementUncollapsedEvent",
+  "v1_353": "componentEnabledEvent",
+  "v1_354": "componentDisabledEvent",
+  "v1_355": "firstSyncStartedEvent",
+  "v1_356": "firstSyncProgressEvent",
+  "v1_357": "firstSyncEndedEvent",
+  "v1_358": "userRenamedEvent",
+  "v1_359": "userUnwantedEvent",
+  "v1_360": "animationFrameChangedEvent",
+  "v1_361": "viewSizeChangedEvent",
+  "v1_362": "userTaggedEvent",
+  "v1_363": "propertyChangedEvent",
+  "v1_367": "FrameBuffer",
+  "v1_369": "NetworkCode",
+  "v1_370": "PenSurface",
+  "v1_372": "Point",
+  "v1_373": "Size",
+  "v1_374": "Rect",
+  "v1_375": "ButtonType",
+  "v1_376": "Room",
+  "v1_422": "ConnectionManager",
+  "v1_423": "User",
+  "v1_443": "UserInterface",
+  "v1_444": "Device",
+  "v1_445": "SoundSystem",
+  "v1_446": "ImagePreview",
+  "v1_447": "Icon",
+  "v1_449": "LoadingScreen",
+  "v1_450": "TextManager",
+  "v1_453": "room",
+  "v1_454": "socket",
+  "v1_455": "cm",
+  "v1_456": "UI",
+  "v1_457": "storage",
+  "v1_458": "device",
+  "v1_459": "domain",
+  "v1_460": "textManager",
+  "v1_461": "run",
+  "v1_462": "loadTexts",
+  "v1_463": "changeCaption",
+  "v1_464": "hideButton",
+  "v1_156": "zeroToOnePercentage",
+  "v1_421": "Socket",
+  "v1_448": "Account",
+  "v1_86": "Captcha",
+  "v1_115": "UserGalleryDialog",
+  "v1_229": "contentChangedEvent",
+  "v1_255": "drawingActivityChangedEvent",
+  "v1_346": "presenceChangedEvent",
+  "v1_364": "tagAddedEvent",
+  "v1_365": "tagRemovedEvent",
+  "v1_366": "tagsChangedEvent",
+  "v1_378": "CmdHELLO",
+  "v1_379": "CmdLETSTALK",
+  "v1_380": "CmdSUCCESS",
+  "v1_381": "CmdFAIL",
+  "v1_382": "CmdWELCOME",
+  "v1_383": "CmdPONG",
+  "v1_384": "CmdSERVERCHANGE",
+  "v1_385": "CmdFLAG",
+  "v1_386": "CmdENTERED",
+  "v1_387": "CmdJOINED",
+  "v1_388": "CmdYOULEFT",
+  "v1_389": "CmdLEFT",
+  "v1_390": "CmdINTHEROOM",
+  "v1_391": "CmdCONNECTIONISSUES",
+  "v1_392": "CmdGLOBALRESPONSE",
+  "v1_393": "CmdCHATMSG",
+  "v1_394": "CmdRELOGGED",
+  "v1_395": "CmdYOURELOGGED",
+  "v1_396": "CmdDIRECT",
+  "v1_397": "CmdSTAFFACTION",
+  "v1_398": "CmdUSERRESPONSE",
+  "v1_399": "CmdROOMRESPONSE",
+  "v1_400": "CmdROOMREQRESPONSE",
+  "v1_401": "CmdGALLERYRESPONSE",
+  "v1_402": "CmdADMINRESPONSE",
+  "v1_403": "CmdADMINREQRESPONSE",
+  "v1_404": "CmdGLOBALMSG",
+  "v1_405": "CmdGLOBALALERT",
+  "v1_406": "CmdLOBBY",
+  "v1_407": "CmdMESSENGERNEW",
+  "v1_408": "CmdFRIENDNEW",
+  "v1_409": "CmdFRIENDPRESENCE",
+  "v1_410": "CmdMUTETIME",
+  "v1_411": "CmdTHUMBNAIL",
+  "v1_412": "CmdDEBUG",
+  "v1_413": "CmdROOMGET",
+  "v1_414": "CmdROOMSTATUS",
+  "v1_415": "CmdIMG",
+  "v1_416": "CmdRANKCHANGE",
+  "v1_417": "CmdBC",
+  "v1_418": "CmdBYE",
+  "v1_419": "CmdFAILED"
+ },
+ "report": [
+  {
+   "old": "BrushStub",
+   "new": "v1_0",
+   "kind": "ClassDeclaration",
+   "score": 0.988
+  },
+  {
+   "old": "BrushDrag",
+   "new": "v1_1",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "BrushRotate",
+   "new": "v1_2",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "BrushPicker",
+   "new": "v1_3",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "BrushSelection",
+   "new": "v1_4",
+   "kind": "ClassDeclaration",
+   "score": 0.402
+  },
+  {
+   "old": "BrushEraser",
+   "new": "v1_5",
+   "kind": "ClassDeclaration",
+   "score": 0.863
+  },
+  {
+   "old": "BrushHandler",
+   "new": "v1_6",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "BrushOption",
+   "new": "v1_7",
+   "kind": "ClassDeclaration",
+   "score": 0.945
+  },
+  {
+   "old": "BlendModeOption",
+   "new": "v1_8",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "AlphaOption",
+   "new": "v1_9",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "SizeOption",
+   "new": "v1_10",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "BlurOption",
+   "new": "v1_11",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "SmoothOption",
+   "new": "v1_12",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "SpacingOption",
+   "new": "v1_13",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "MultilayerOption",
+   "new": "v1_14",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "SelectionTypeOption",
+   "new": "v1_15",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "GalleryOption",
+   "new": "v1_16",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "CustomizeOption",
+   "new": "v1_17",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "PressureOption",
+   "new": "v1_18",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "AreaAverageOption",
+   "new": "v1_19",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "EraserModeOption",
+   "new": "v1_20",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "AspectRatioOption",
+   "new": "v1_21",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "SnapOption",
+   "new": "v1_22",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "DrawGridOption",
+   "new": "v1_23",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "FontOption",
+   "new": "v1_24",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "FillOption",
+   "new": "v1_25",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "AllowedLayersOption",
+   "new": "v1_26",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "ImageOption",
+   "new": "v1_27",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "CursorOption",
+   "new": "v1_28",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": null,
+   "new": "v1_29",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_30",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "TintOption",
+   "new": "v1_31",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "RandomRotationOption",
+   "new": "v1_32",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "RotationValueOption",
+   "new": "v1_33",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "RightClickOption",
+   "new": "v1_34",
+   "kind": "ClassDeclaration",
+   "score": 0.988
+  },
+  {
+   "old": "BrushPen",
+   "new": "v1_35",
+   "kind": "ClassDeclaration",
+   "score": 0.752
+  },
+  {
+   "old": "BrushText",
+   "new": "v1_36",
+   "kind": "ClassDeclaration",
+   "score": 0.967
+  },
+  {
+   "old": "BrushRect",
+   "new": "v1_37",
+   "kind": "ClassDeclaration",
+   "score": 0.976
+  },
+  {
+   "old": "BrushLine",
+   "new": "v1_38",
+   "kind": "ClassDeclaration",
+   "score": 0.97
+  },
+  {
+   "old": "BrushEllipse",
+   "new": "v1_39",
+   "kind": "ClassDeclaration",
+   "score": 0.976
+  },
+  {
+   "old": "BrushFill",
+   "new": "v1_40",
+   "kind": "ClassDeclaration",
+   "score": 0.594
+  },
+  {
+   "old": "BrushBlend",
+   "new": "v1_41",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "BrushCustom",
+   "new": "v1_42",
+   "kind": "ClassDeclaration",
+   "score": 0.772
+  },
+  {
+   "old": "BrushBlur",
+   "new": "v1_43",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "BrushPixel",
+   "new": "v1_44",
+   "kind": "ClassDeclaration",
+   "score": 0.886
+  },
+  {
+   "old": "Component",
+   "new": "v1_45",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "UIComponent",
+   "new": "v1_46",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "Slider",
+   "new": "v1_47",
+   "kind": "ClassDeclaration",
+   "score": 0.998
+  },
+  {
+   "old": "SliderCheck",
+   "new": "v1_48",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "Button",
+   "new": "v1_49",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "List",
+   "new": "v1_50",
+   "kind": "ClassDeclaration",
+   "score": 0.98
+  },
+  {
+   "old": "Switch",
+   "new": "v1_51",
+   "kind": "ClassDeclaration",
+   "score": 0.988
+  },
+  {
+   "old": "Checkbox",
+   "new": "v1_52",
+   "kind": "ClassDeclaration",
+   "score": 0.979
+  },
+  {
+   "old": "Pagination",
+   "new": "v1_53",
+   "kind": "ClassDeclaration",
+   "score": 0.97
+  },
+  {
+   "old": "Table",
+   "new": "v1_54",
+   "kind": "ClassDeclaration",
+   "score": 0.808
+  },
+  {
+   "old": "ShortcutManager",
+   "new": "v1_55",
+   "kind": "ClassDeclaration",
+   "score": 0.976
+  },
+  {
+   "old": "ShortcutObject",
+   "new": "v1_56",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "LayerPreview",
+   "new": "v1_57",
+   "kind": "ClassDeclaration",
+   "score": 0.952
+  },
+  {
+   "old": "AnimationOptions",
+   "new": "v1_58",
+   "kind": "ClassDeclaration",
+   "score": 0.952
+  },
+  {
+   "old": "UserList",
+   "new": "v1_59",
+   "kind": "ClassDeclaration",
+   "score": 0.794
+  },
+  {
+   "old": "Toolbar",
+   "new": "v1_60",
+   "kind": "ClassDeclaration",
+   "score": 0.949
+  },
+  {
+   "old": "PresetBox",
+   "new": "v1_61",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "PresetGrid",
+   "new": "v1_62",
+   "kind": "ClassDeclaration",
+   "score": 0.972
+  },
+  {
+   "old": "ColorBubble",
+   "new": "v1_63",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "ColorGrid",
+   "new": "v1_64",
+   "kind": "ClassDeclaration",
+   "score": 0.971
+  },
+  {
+   "old": "ColorWheel",
+   "new": "v1_65",
+   "kind": "ClassDeclaration",
+   "score": 0.993
+  },
+  {
+   "old": "ColorBox",
+   "new": "v1_66",
+   "kind": "ClassDeclaration",
+   "score": 0.98
+  },
+  {
+   "old": "SidebarContainer",
+   "new": "v1_67",
+   "kind": "ClassDeclaration",
+   "score": 0.987
+  },
+  {
+   "old": "ToolOptions",
+   "new": "v1_68",
+   "kind": "ClassDeclaration",
+   "score": 0.965
+  },
+  {
+   "old": "Uploader",
+   "new": "v1_69",
+   "kind": "ClassDeclaration",
+   "score": 0.935
+  },
+  {
+   "old": "UploaderImages",
+   "new": "v1_70",
+   "kind": "ClassDeclaration",
+   "score": 0.932
+  },
+  {
+   "old": "FloatingToolbar",
+   "new": "v1_71",
+   "kind": "ClassDeclaration",
+   "score": 0.941
+  },
+  {
+   "old": "Tooltip",
+   "new": "v1_72",
+   "kind": "ClassDeclaration",
+   "score": 0.85
+  },
+  {
+   "old": "Resizer",
+   "new": "v1_73",
+   "kind": "ClassDeclaration",
+   "score": 0.951
+  },
+  {
+   "old": "MousePointer",
+   "new": "v1_74",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "SelectionTool",
+   "new": "v1_75",
+   "kind": "ClassDeclaration",
+   "score": 0.599
+  },
+  {
+   "old": "Topbar",
+   "new": "v1_76",
+   "kind": "ClassDeclaration",
+   "score": 0.879
+  },
+  {
+   "old": "Bottombar",
+   "new": "v1_77",
+   "kind": "ClassDeclaration",
+   "score": 0.605
+  },
+  {
+   "old": "Sidebar",
+   "new": "v1_78",
+   "kind": "ClassDeclaration",
+   "score": 0.97
+  },
+  {
+   "old": "EmojiSelector",
+   "new": "v1_79",
+   "kind": "ClassDeclaration",
+   "score": 0.686
+  },
+  {
+   "old": "UserTag",
+   "new": "v1_80",
+   "kind": "ClassDeclaration",
+   "score": 0.97
+  },
+  {
+   "old": "ProgressBar",
+   "new": "v1_81",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "RadialMenu",
+   "new": "v1_82",
+   "kind": "ClassDeclaration",
+   "score": 0.973
+  },
+  {
+   "old": "NumericInput",
+   "new": "v1_83",
+   "kind": "ClassDeclaration",
+   "score": 0.953
+  },
+  {
+   "old": "Selector",
+   "new": "v1_84",
+   "kind": "ClassDeclaration",
+   "score": 0.805
+  },
+  {
+   "old": "SortableList",
+   "new": "v1_85",
+   "kind": "ClassDeclaration",
+   "score": 0.91
+  },
+  {
+   "old": null,
+   "new": "v1_86",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "Captcha",
+   "new": null,
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "ColorSelector",
+   "new": "v1_87",
+   "kind": "ClassDeclaration",
+   "score": 0.967
+  },
+  {
+   "old": "AlertManager",
+   "new": "v1_88",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "PIP",
+   "new": "v1_89",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": null,
+   "new": "v1_90",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_91",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_92",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_93",
+   "kind": "FunctionDeclaration",
+   "score": 0
+  },
+  {
+   "old": "DialogHandler",
+   "new": "v1_94",
+   "kind": "ClassDeclaration",
+   "score": 0.86
+  },
+  {
+   "old": "Dialog",
+   "new": "v1_95",
+   "kind": "ClassDeclaration",
+   "score": 0.949
+  },
+  {
+   "old": "SubDialog",
+   "new": "v1_96",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "ConfigDialog",
+   "new": "v1_97",
+   "kind": "ClassDeclaration",
+   "score": 0.997
+  },
+  {
+   "old": "LoginDialog",
+   "new": "v1_98",
+   "kind": "ClassDeclaration",
+   "score": 0.473
+  },
+  {
+   "old": "ChatDialog",
+   "new": "v1_99",
+   "kind": "ClassDeclaration",
+   "score": 0.792
+  },
+  {
+   "old": "ChatChannel",
+   "new": "v1_100",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "UndoDialog",
+   "new": "v1_101",
+   "kind": "ClassDeclaration",
+   "score": 0.689
+  },
+  {
+   "old": "RoomManagerDialog",
+   "new": "v1_102",
+   "kind": "ClassDeclaration",
+   "score": 0.746
+  },
+  {
+   "old": "RoomManagerSettingsSubDialog",
+   "new": "v1_103",
+   "kind": "ClassDeclaration",
+   "score": 0.884
+  },
+  {
+   "old": "RoomManagerStaffSubDialog",
+   "new": "v1_104",
+   "kind": "ClassDeclaration",
+   "score": 0.946
+  },
+  {
+   "old": "RoomManagerPrivilegesSubDialog",
+   "new": "v1_105",
+   "kind": "ClassDeclaration",
+   "score": 0.953
+  },
+  {
+   "old": "RoomManagerToolsSubDialog",
+   "new": "v1_106",
+   "kind": "ClassDeclaration",
+   "score": 0.955
+  },
+  {
+   "old": "RoomManagerBansSubDialog",
+   "new": "v1_107",
+   "kind": "ClassDeclaration",
+   "score": 0.969
+  },
+  {
+   "old": null,
+   "new": "v1_108",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_109",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "SaveDialog",
+   "new": "v1_110",
+   "kind": "ClassDeclaration",
+   "score": 0.601
+  },
+  {
+   "old": "UploadDialog",
+   "new": "v1_111",
+   "kind": "ClassDeclaration",
+   "score": 0.669
+  },
+  {
+   "old": "BrushDesignerDialog",
+   "new": "v1_112",
+   "kind": "ClassDeclaration",
+   "score": 0.925
+  },
+  {
+   "old": "BrushGalleryDialog",
+   "new": "v1_113",
+   "kind": "ClassDeclaration",
+   "score": 0.94
+  },
+  {
+   "old": "DebugDialog",
+   "new": "v1_114",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": null,
+   "new": "v1_115",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "UserGalleryDialog",
+   "new": null,
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "ProfileDialog",
+   "new": "v1_116",
+   "kind": "ClassDeclaration",
+   "score": 0.353
+  },
+  {
+   "old": "ColorDialog",
+   "new": "v1_117",
+   "kind": "ClassDeclaration",
+   "score": 0.998
+  },
+  {
+   "old": "HelpDialog",
+   "new": "v1_118",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "FeedbackDialog",
+   "new": "v1_119",
+   "kind": "ClassDeclaration",
+   "score": 0.955
+  },
+  {
+   "old": null,
+   "new": "v1_120",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "AnimationDialog",
+   "new": "v1_121",
+   "kind": "ClassDeclaration",
+   "score": 0.906
+  },
+  {
+   "old": "MessengerDialog",
+   "new": "v1_122",
+   "kind": "ClassDeclaration",
+   "score": 0.814
+  },
+  {
+   "old": null,
+   "new": "v1_123",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "GalleryImageDialog",
+   "new": "v1_124",
+   "kind": "ClassDeclaration",
+   "score": 0.448
+  },
+  {
+   "old": null,
+   "new": "v1_125",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_126",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "AdminConsoleDialog",
+   "new": "v1_127",
+   "kind": "ClassDeclaration",
+   "score": 0.825
+  },
+  {
+   "old": null,
+   "new": "v1_128",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_129",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_130",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_131",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "AdminConsoleRoomsSubDialog",
+   "new": "v1_132",
+   "kind": "ClassDeclaration",
+   "score": 0.918
+  },
+  {
+   "old": "AdminConsoleUsersSubDialog",
+   "new": "v1_133",
+   "kind": "ClassDeclaration",
+   "score": 0.974
+  },
+  {
+   "old": "AdminConsoleClientsSubDialog",
+   "new": "v1_131",
+   "kind": "ClassDeclaration",
+   "score": 0.75
+  },
+  {
+   "old": "AdminConsoleBansSubDialog",
+   "new": "v1_134",
+   "kind": "ClassDeclaration",
+   "score": 0.979
+  },
+  {
+   "old": "AdminConsoleEventsSubDialog",
+   "new": "v1_135",
+   "kind": "ClassDeclaration",
+   "score": 0.952
+  },
+  {
+   "old": "AdminConsoleFeedbackSubDialog",
+   "new": "v1_136",
+   "kind": "ClassDeclaration",
+   "score": 0.99
+  },
+  {
+   "old": "AdminConsoleSystemSubDialog",
+   "new": "v1_130",
+   "kind": "ClassDeclaration",
+   "score": 0.979
+  },
+  {
+   "old": "AdminConsoleSummarySubDialog",
+   "new": "v1_129",
+   "kind": "ClassDeclaration",
+   "score": 0.686
+  },
+  {
+   "old": "log",
+   "new": "v1_137",
+   "kind": "FunctionDeclaration",
+   "score": 0.667
+  },
+  {
+   "old": "GetVariable",
+   "new": "v1_138",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "rgb2obj",
+   "new": "v1_139",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "rgb2hex",
+   "new": "v1_140",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "hex2rgb",
+   "new": "v1_141",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "rgb2hsl",
+   "new": "v1_142",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "hsl2rgb",
+   "new": "v1_143",
+   "kind": "FunctionDeclaration",
+   "score": 0.714
+  },
+  {
+   "old": "rgb2hsv",
+   "new": "v1_144",
+   "kind": "FunctionDeclaration",
+   "score": 0.847
+  },
+  {
+   "old": "hsv2rgb",
+   "new": "v1_145",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "isHexColor",
+   "new": "v1_146",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "sizeToName",
+   "new": "v1_147",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "cropImage",
+   "new": "v1_148",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": null,
+   "new": "v1_149",
+   "kind": "FunctionDeclaration",
+   "score": 0
+  },
+  {
+   "old": "getLimits",
+   "new": "v1_150",
+   "kind": "FunctionDeclaration",
+   "score": 0.65
+  },
+  {
+   "old": "imagedataEqual",
+   "new": "v1_151",
+   "kind": "FunctionDeclaration",
+   "score": 0.692
+  },
+  {
+   "old": null,
+   "new": "v1_152",
+   "kind": "FunctionDeclaration",
+   "score": 0
+  },
+  {
+   "old": "getPixelIndex",
+   "new": "v1_153",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "getPixel",
+   "new": "v1_154",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "blurPercentage",
+   "new": "v1_155",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": null,
+   "new": "v1_156",
+   "kind": "FunctionDeclaration",
+   "score": 0
+  },
+  {
+   "old": "yesnoFunction",
+   "new": "v1_157",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "lassoRectFunction",
+   "new": "v1_158",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "canvas2blob",
+   "new": "v1_159",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "tooltipShortcut",
+   "new": "v1_160",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "tooltipText",
+   "new": "v1_161",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "colorBubbleTooltip",
+   "new": "v1_162",
+   "kind": "FunctionDeclaration",
+   "score": 0.939
+  },
+  {
+   "old": "presetBubbleTooltip",
+   "new": "v1_163",
+   "kind": "FunctionDeclaration",
+   "score": 0.964
+  },
+  {
+   "old": "openBrushDesigner",
+   "new": "v1_164",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "openBrushGallery",
+   "new": "v1_165",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": null,
+   "new": "v1_166",
+   "kind": "FunctionDeclaration",
+   "score": 0
+  },
+  {
+   "old": "angleSnap",
+   "new": "v1_167",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "rot13",
+   "new": "v1_168",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "encryptMessage",
+   "new": "v1_169",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "decryptMessage",
+   "new": "v1_170",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "firstMatch",
+   "new": "v1_171",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "processSizes",
+   "new": "v1_172",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "formatHour",
+   "new": "v1_173",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "formatTimestamp",
+   "new": "v1_174",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "formatSeconds",
+   "new": "v1_175",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "dateToObj",
+   "new": "v1_176",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "formatDateString",
+   "new": "v1_177",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "hash",
+   "new": "v1_178",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "getNewListOfObjects",
+   "new": "v1_179",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "getNewObject",
+   "new": "v1_180",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "calculateAspectRatioFit",
+   "new": "v1_181",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": null,
+   "new": "v1_182",
+   "kind": "FunctionDeclaration",
+   "score": 0
+  },
+  {
+   "old": "getRadialAvg",
+   "new": "v1_183",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "leadingZeros",
+   "new": "v1_184",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "loopValue",
+   "new": "v1_185",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "parseURL",
+   "new": "v1_186",
+   "kind": "FunctionDeclaration",
+   "score": 0.875
+  },
+  {
+   "old": "nl2br",
+   "new": "v1_187",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "shortcutToKeys",
+   "new": "v1_188",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": null,
+   "new": "v1_189",
+   "kind": "FunctionDeclaration",
+   "score": 0
+  },
+  {
+   "old": "isValidIP",
+   "new": "v1_190",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "getExtension",
+   "new": "v1_191",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "randomElement",
+   "new": "v1_192",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "rgba2rgb",
+   "new": "v1_193",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "escapeHTML",
+   "new": "v1_194",
+   "kind": "FunctionDeclaration",
+   "score": 0.909
+  },
+  {
+   "old": "unescapeHTML",
+   "new": "v1_195",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "matches",
+   "new": "v1_196",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "inArray",
+   "new": "v1_197",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "getRoomFromURL",
+   "new": "v1_198",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "isIPv4",
+   "new": "v1_199",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": null,
+   "new": "v1_200",
+   "kind": "FunctionDeclaration",
+   "score": 0
+  },
+  {
+   "old": "getLengthDescription",
+   "new": "v1_201",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "formatNumber",
+   "new": "v1_202",
+   "kind": "FunctionDeclaration",
+   "score": 0.357
+  },
+  {
+   "old": "setCaretPosition",
+   "new": "v1_203",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "getCaretPosition",
+   "new": "v1_204",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": null,
+   "new": "v1_205",
+   "kind": "FunctionDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_206",
+   "kind": "FunctionDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_207",
+   "kind": "FunctionDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_208",
+   "kind": "FunctionDeclaration",
+   "score": 0
+  },
+  {
+   "old": "UserPreferences",
+   "new": "v1_209",
+   "kind": "ClassDeclaration",
+   "score": 0.97
+  },
+  {
+   "old": "Transfer",
+   "new": "v1_210",
+   "kind": "ClassDeclaration",
+   "score": 0.604
+  },
+  {
+   "old": "rejectTransfer",
+   "new": "v1_211",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "processTransfer",
+   "new": "v1_212",
+   "kind": "FunctionDeclaration",
+   "score": 0.533
+  },
+  {
+   "old": "transferFail",
+   "new": "v1_213",
+   "kind": "FunctionDeclaration",
+   "score": 0.375
+  },
+  {
+   "old": "transferComplete",
+   "new": "v1_214",
+   "kind": "FunctionDeclaration",
+   "score": 0.549
+  },
+  {
+   "old": "transferLayerComplete",
+   "new": "v1_215",
+   "kind": "FunctionDeclaration",
+   "score": 0.74
+  },
+  {
+   "old": "transferProgress",
+   "new": "v1_216",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "sendChunk",
+   "new": "v1_217",
+   "kind": "FunctionDeclaration",
+   "score": 0.554
+  },
+  {
+   "old": "TransferLayer",
+   "new": "v1_218",
+   "kind": "ClassDeclaration",
+   "score": 0.769
+  },
+  {
+   "old": null,
+   "new": "v1_219",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "LocalStorage",
+   "new": "v1_220",
+   "kind": "ClassDeclaration",
+   "score": 0.672
+  },
+  {
+   "old": "AdvancedCanvas",
+   "new": "v1_221",
+   "kind": "ClassDeclaration",
+   "score": 0.439
+  },
+  {
+   "old": "Layer",
+   "new": "v1_222",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "Board",
+   "new": "v1_223",
+   "kind": "ClassDeclaration",
+   "score": 0.928
+  },
+  {
+   "old": "Cursor",
+   "new": "v1_224",
+   "kind": "ClassDeclaration",
+   "score": 0.968
+  },
+  {
+   "old": "FMEvent",
+   "new": "v1_225",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "checkboxChangeEvent",
+   "new": "v1_226",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "checkboxChangedEvent",
+   "new": "v1_227",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "buttonClickedEvent",
+   "new": "v1_228",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": null,
+   "new": "v1_229",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "listChangedEvent",
+   "new": "v1_230",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "sliderChangeEvent",
+   "new": "v1_231",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "sliderChangedEvent",
+   "new": "v1_232",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "sliderCheckChangeEvent",
+   "new": "v1_233",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "sliderCheckChangedEvent",
+   "new": "v1_234",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "sliderMovedEvent",
+   "new": "v1_235",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "transferStartEvent",
+   "new": "v1_236",
+   "kind": "ClassDeclaration",
+   "score": 0.889
+  },
+  {
+   "old": "slateUseChangedEvent",
+   "new": "v1_237",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "uploadModeChangedEvent",
+   "new": "v1_238",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "transferLayerCompleteEvent",
+   "new": "v1_239",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "transferCompleteEvent",
+   "new": "v1_240",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "transferProgressEvent",
+   "new": "v1_241",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "transferFailEvent",
+   "new": "v1_242",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "transferChunkReadyEvent",
+   "new": "v1_243",
+   "kind": "ClassDeclaration",
+   "score": 0.895
+  },
+  {
+   "old": "usernameChangedEvent",
+   "new": "v1_244",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "statusChangedEvent",
+   "new": "v1_245",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "rankChangedEvent",
+   "new": "v1_246",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "connectionIssueChangedEvent",
+   "new": "v1_247",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "muteChangedEvent",
+   "new": "v1_248",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "muteTimerStartedEvent",
+   "new": "v1_249",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "silenceChangedEvent",
+   "new": "v1_250",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "ignoreChangedEvent",
+   "new": "v1_251",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "userIgnoredEvent",
+   "new": "v1_252",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "userUnignoredEvent",
+   "new": "v1_253",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "inactiveChangedEvent",
+   "new": "v1_254",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": null,
+   "new": "v1_255",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "inputDeviceChangedEvent",
+   "new": "v1_256",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "scaleChangedEvent",
+   "new": "v1_257",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "rotationChangedEvent",
+   "new": "v1_258",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "roomChangedEvent",
+   "new": "v1_259",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "roomTypeChangedEvent",
+   "new": "v1_260",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "roomPrivilegesChangedEvent",
+   "new": "v1_261",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "roomToolsChangedEvent",
+   "new": "v1_262",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "canvasSizeChangeEvent",
+   "new": "v1_263",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "canvasSizeChangedEvent",
+   "new": "v1_264",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "imageChangedEvent",
+   "new": "v1_265",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "silhouetteChangedEvent",
+   "new": "v1_266",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "backgroundColorChangedEvent",
+   "new": "v1_267",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "bottomLayerTransparencyChangedEvent",
+   "new": "v1_268",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "roomConnectedEvent",
+   "new": "v1_269",
+   "kind": "ClassDeclaration",
+   "score": 0.773
+  },
+  {
+   "old": "roomDisconnectedEvent",
+   "new": "v1_270",
+   "kind": "ClassDeclaration",
+   "score": 0.917
+  },
+  {
+   "old": "layerCountChangedEvent",
+   "new": "v1_271",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "layerCountChangeEvent",
+   "new": "v1_272",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "layerChangedEvent",
+   "new": "v1_273",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "layerSelectedEvent",
+   "new": "v1_274",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "slatePriorityChangedEvent",
+   "new": "v1_275",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "penDownEvent",
+   "new": "v1_276",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "penUpEvent",
+   "new": "v1_277",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "penMoveEvent",
+   "new": "v1_278",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "penCancelEvent",
+   "new": "v1_279",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "penHideEvent",
+   "new": "v1_280",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "penShowEvent",
+   "new": "v1_281",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "keyPressEvent",
+   "new": "v1_282",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "modifierDownEvent",
+   "new": "v1_283",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "modifierUpEvent",
+   "new": "v1_284",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "brushParameterEvent",
+   "new": "v1_285",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "clearLayerEvent",
+   "new": "v1_286",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "layerActionRequestEvent",
+   "new": "v1_287",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "userActionRequestEvent",
+   "new": "v1_288",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "flipLayerEvent",
+   "new": "v1_289",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "mergeLayerEvent",
+   "new": "v1_290",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "colorChangedEvent",
+   "new": "v1_291",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "brushChangedEvent",
+   "new": "v1_292",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "brushOptionChangedEvent",
+   "new": "v1_293",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "brushOptionReadOnlyEvent",
+   "new": "v1_294",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "userJoinedEvent",
+   "new": "v1_295",
+   "kind": "ClassDeclaration",
+   "score": 0.833
+  },
+  {
+   "old": "userLeavingEvent",
+   "new": "v1_296",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "userLeftEvent",
+   "new": "v1_297",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "youLeftEvent",
+   "new": "v1_298",
+   "kind": "ClassDeclaration",
+   "score": 0.933
+  },
+  {
+   "old": "confirmationClosedEvent",
+   "new": "v1_299",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "floatingToolbarOpenedEvent",
+   "new": "v1_300",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "floatingToolbarClosedEvent",
+   "new": "v1_301",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "uploaderOpenedEvent",
+   "new": "v1_302",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "uploaderClosedEvent",
+   "new": "v1_303",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "dialogOpenedEvent",
+   "new": "v1_304",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "dialogClosedEvent",
+   "new": "v1_305",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "dialogModalEnabledEvent",
+   "new": "v1_306",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "dialogModalDisabledEvent",
+   "new": "v1_307",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "dialogContentChangedEvent",
+   "new": "v1_308",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "dialogSizeTypeChangedEvent",
+   "new": "v1_309",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "windowResizingStartedEvent",
+   "new": "v1_310",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "windowResizingEndedEvent",
+   "new": "v1_311",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "dialogResizingStartedEvent",
+   "new": "v1_312",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "dialogResizingEndedEvent",
+   "new": "v1_313",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "dialogDraggingStartedEvent",
+   "new": "v1_314",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "dialogDraggingEndedEvent",
+   "new": "v1_315",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "dialogMaximizedEvent",
+   "new": "v1_316",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "dialogRestoredEvent",
+   "new": "v1_317",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "layerFlippedEvent",
+   "new": "v1_318",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "layerClearedEvent",
+   "new": "v1_319",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "layerLockedEvent",
+   "new": "v1_320",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "layerUnlockedEvent",
+   "new": "v1_321",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "optionSelectedEvent",
+   "new": "v1_322",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "viewFlippedEvent",
+   "new": "v1_323",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "elementResizedEvent",
+   "new": "v1_324",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "shortcutPressedEvent",
+   "new": "v1_325",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "shortcutReleasedEvent",
+   "new": "v1_326",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "pageSelectedEvent",
+   "new": "v1_327",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "tableRowSelectedEvent",
+   "new": "v1_328",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "tableRowUnselectedEvent",
+   "new": "v1_329",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "tableRowDoubleClickEvent",
+   "new": "v1_330",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "socketConnectedEvent",
+   "new": "v1_331",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "socketDisconnectedEvent",
+   "new": "v1_332",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "socketErrorEvent",
+   "new": "v1_333",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "socketNegotiatedEvent",
+   "new": "v1_334",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "buttonPressedEvent",
+   "new": "v1_335",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "bubbleClickedEvent",
+   "new": "v1_336",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "layerOptionClickedEvent",
+   "new": "v1_337",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "windowFocusedEvent",
+   "new": "v1_338",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "windowBlurredEvent",
+   "new": "v1_339",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "emojiSelectedEvent",
+   "new": "v1_340",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "processFinishedEvent",
+   "new": "v1_341",
+   "kind": "ClassDeclaration",
+   "score": 0.75
+  },
+  {
+   "old": "imageLoadedEvent",
+   "new": "v1_342",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "fileLoadedEvent",
+   "new": "v1_343",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "localeChangedEvent",
+   "new": "v1_344",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "unreadMessagesEvent",
+   "new": "v1_345",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": null,
+   "new": "v1_346",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "chatChannelPropertyChangedEvent",
+   "new": "v1_347",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "sidebarCollapsedEvent",
+   "new": "v1_348",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "sidebarUncollapsedEvent",
+   "new": "v1_349",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "elementCollapsedEvent",
+   "new": "v1_350",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "elementHeightChangedEvent",
+   "new": "v1_351",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "elementUncollapsedEvent",
+   "new": "v1_352",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "componentEnabledEvent",
+   "new": "v1_353",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "componentDisabledEvent",
+   "new": "v1_354",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "firstSyncStartedEvent",
+   "new": "v1_355",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "firstSyncProgressEvent",
+   "new": "v1_356",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "firstSyncEndedEvent",
+   "new": "v1_357",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "userRenamedEvent",
+   "new": "v1_358",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "userUnwantedEvent",
+   "new": "v1_359",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "animationFrameChangedEvent",
+   "new": "v1_360",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "viewSizeChangedEvent",
+   "new": "v1_361",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "userTaggedEvent",
+   "new": "v1_362",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "propertyChangedEvent",
+   "new": "v1_363",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": null,
+   "new": "v1_364",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_365",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_366",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "FrameBuffer",
+   "new": "v1_367",
+   "kind": "ClassDeclaration",
+   "score": 0.689
+  },
+  {
+   "old": "NetworkCode",
+   "new": "v1_369",
+   "kind": "ClassDeclaration",
+   "score": 0.905
+  },
+  {
+   "old": "PenSurface",
+   "new": "v1_370",
+   "kind": "ClassDeclaration",
+   "score": 0.737
+  },
+  {
+   "old": "Point",
+   "new": "v1_372",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "Size",
+   "new": "v1_373",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "Rect",
+   "new": "v1_374",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "ButtonType",
+   "new": "v1_375",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "Room",
+   "new": "v1_376",
+   "kind": "ClassDeclaration",
+   "score": 0.938
+  },
+  {
+   "old": null,
+   "new": "v1_377",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_378",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_379",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_380",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_381",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_382",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_383",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_384",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_385",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_386",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_387",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_388",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_389",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_390",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_391",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_392",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_393",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_394",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_395",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_396",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_397",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_398",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_399",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_400",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_401",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_402",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_403",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_404",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_405",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_406",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_407",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_408",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_409",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_410",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_411",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_412",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_413",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_414",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_415",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_416",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_417",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_418",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_419",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_420",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_421",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "Socket",
+   "new": null,
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "ConnectionManager",
+   "new": "v1_422",
+   "kind": "ClassDeclaration",
+   "score": 0.827
+  },
+  {
+   "old": "User",
+   "new": "v1_423",
+   "kind": "ClassDeclaration",
+   "score": 0.822
+  },
+  {
+   "old": null,
+   "new": "v1_424",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_425",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_426",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_427",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_428",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_429",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_430",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_431",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_432",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_433",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_434",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_435",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_436",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_437",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_438",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_439",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_440",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_441",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_442",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "UserInterface",
+   "new": "v1_443",
+   "kind": "ClassDeclaration",
+   "score": 0.806
+  },
+  {
+   "old": "Device",
+   "new": "v1_444",
+   "kind": "ClassDeclaration",
+   "score": 0.305
+  },
+  {
+   "old": "SoundSystem",
+   "new": "v1_445",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": "ImagePreview",
+   "new": "v1_446",
+   "kind": "ClassDeclaration",
+   "score": 0.657
+  },
+  {
+   "old": "Icon",
+   "new": "v1_447",
+   "kind": "ClassDeclaration",
+   "score": 1
+  },
+  {
+   "old": null,
+   "new": "v1_448",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "Account",
+   "new": null,
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "LoadingScreen",
+   "new": "v1_449",
+   "kind": "ClassDeclaration",
+   "score": 0.994
+  },
+  {
+   "old": "TextManager",
+   "new": "v1_450",
+   "kind": "ClassDeclaration",
+   "score": 0.813
+  },
+  {
+   "old": null,
+   "new": "v1_451",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": null,
+   "new": "v1_452",
+   "kind": "ClassDeclaration",
+   "score": 0
+  },
+  {
+   "old": "room",
+   "new": "v1_453",
+   "kind": "Var",
+   "score": 1
+  },
+  {
+   "old": "socket",
+   "new": "v1_454",
+   "kind": "Var",
+   "score": 1
+  },
+  {
+   "old": "cm",
+   "new": "v1_455",
+   "kind": "Var",
+   "score": 1
+  },
+  {
+   "old": "UI",
+   "new": "v1_456",
+   "kind": "Var",
+   "score": 1
+  },
+  {
+   "old": "storage",
+   "new": "v1_457",
+   "kind": "Var",
+   "score": 1
+  },
+  {
+   "old": "device",
+   "new": "v1_458",
+   "kind": "Var",
+   "score": 1
+  },
+  {
+   "old": "domain",
+   "new": "v1_459",
+   "kind": "Var",
+   "score": 1
+  },
+  {
+   "old": "textManager",
+   "new": "v1_460",
+   "kind": "Var",
+   "score": 1
+  },
+  {
+   "old": "run",
+   "new": "v1_461",
+   "kind": "FunctionDeclaration",
+   "score": 0.88
+  },
+  {
+   "old": "loadTexts",
+   "new": "v1_462",
+   "kind": "FunctionDeclaration",
+   "score": 0.627
+  },
+  {
+   "old": "changeCaption",
+   "new": "v1_463",
+   "kind": "FunctionDeclaration",
+   "score": 1
+  },
+  {
+   "old": "hideButton",
+   "new": "v1_464",
+   "kind": "FunctionDeclaration",
+   "score": 0.833
+  },
+  {
+   "old": "zeroToOnePercentage",
+   "new": "v1_156",
+   "kind": "FunctionDeclaration",
+   "score": 0.667
+  }
+ ]
+}

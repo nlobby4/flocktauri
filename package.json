@@ -1,11 +1,14 @@
 {
   "name": "flocktauri",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.5.0",
   "scripts": {
     "tauri": "tauri",
     "tauri dev": "tauri dev",
-    "tauri build": "tauri build"
+    "tauri build": "tauri build",
+    "version:patch": "node bump-version.js patch",
+    "version:minor": "node bump-version.js minor",
+    "version:major": "node bump-version.js major"
   },
   "dependencies": {
     "@tauri-apps/api": "~2.5.0",
@@ -14,6 +17,6 @@
     "tauri": "^0.15.0"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2"
+    "@tauri-apps/cli": "^2.9.6"
   }
 }

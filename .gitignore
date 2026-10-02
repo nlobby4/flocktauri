@@ -1,3 +1,10 @@
+# Android signing secrets
+*.jks
+keystore.properties
+
+# Build
+build/
+
 # Node modules
 node_modules/
 
@@ -12,6 +19,7 @@ out/
 
 # Tauri build outputs
 src-tauri/target/
+src-tauri/gen/
 
 # OS specific files
 .DS_Store
@@ -41,3 +49,7 @@ yarn-error.log*
 *.tmp
 *.temp
 .cache/
+
+# extra Tauri build dirs (parallel builds while an instance is running)
+src-tauri/target-*/
+release-1.5.0/
