@@ -96,7 +96,7 @@ fn main() {
                 "flockmod-window",
                 WebviewUrl::External("https://flockmod.com/draw/".parse().unwrap())
             )
-            .title("Flockmod")
+            .title("flockmoD")
             .initialization_script(&full_init_script) 
             .inner_size(1280.0, 800.0)
             .build()?;

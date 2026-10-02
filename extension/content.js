@@ -2,7 +2,9 @@
 function injectScript(fileName, type) {
   const script = document.createElement('script');
   script.src = chrome.runtime.getURL(fileName);
-  script.type = type; 
+  script.type = type;
+  // Dynamic scripts default to async; keep flockmod.js -> injected.js execution order.
+  script.async = false;
   (document.head || document.documentElement).appendChild(script);
 }
 

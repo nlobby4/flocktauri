@@ -1,0 +1,19 @@
+const fs=require("fs"),p=require("@babel/parser"),tr=require("@babel/traverse").default,t=require("@babel/types");
+const inj=p.parse(fs.readFileSync("extension/injected.js","utf8"),{errorRecovery:true,sourceType:"script"});
+// FlockMod file to check against (default: the shipped extension/flockmod.js)
+const fmFile=process.argv[2]||"extension/flockmod.js";
+const fin=p.parse(fs.readFileSync(fmFile,"utf8"),{errorRecovery:true});
+const fmTop=new Set();tr(fin,{Program(x){for(const k of Object.keys(x.scope.bindings))fmTop.add(k);x.stop();}});
+const fmMembers=new Set();tr(fin,{ClassMethod(x){fmMembers.add(x.node.key.name)},AssignmentExpression(x){const l=x.node.left;if(t.isMemberExpression(l)&&!l.computed)fmMembers.add(l.property.name)},ObjectProperty(x){if(x.node.key&&x.node.key.name)fmMembers.add(x.node.key.name)}});
+const injDefs=new Set();tr(inj,{ClassMethod(x){injDefs.add(x.node.key.name)},AssignmentExpression(x){const l=x.node.left;if(t.isMemberExpression(l)&&!l.computed)injDefs.add(l.property.name)},ObjectProperty(x){if(x.node.key&&x.node.key.name)injDefs.add(x.node.key.name)},ObjectMethod(x){if(x.node.key&&x.node.key.name)injDefs.add(x.node.key.name)}});
+const globalsUsed=new Map();tr(inj,{Program(x){for(const [k,v] of Object.entries(x.scope.globals)) globalsUsed.set(k,true);}});
+const usedFm=[...globalsUsed.keys()].filter(k=>fmTop.has(k));
+console.log("FM globals used by injected.js:",usedFm.join(", "));
+const browserish=/^(window|document|console|setTimeout|clearTimeout|setInterval|clearInterval|localStorage|sessionStorage|navigator|location|JSON|Math|Date|Promise|Object|Array|String|Number|Boolean|Error|Map|Set|WeakMap|Image|fetch|requestAnimationFrame|cancelAnimationFrame|performance|MutationObserver|Event|CustomEvent|KeyboardEvent|MouseEvent|HTMLElement|URL|Blob|FileReader|atob|btoa|parseInt|parseFloat|isNaN|isFinite|undefined|alert|confirm|prompt|getComputedStyle|ResizeObserver|Uint8Array|Uint8ClampedArray|ImageData|OffscreenCanvas|structuredClone|crypto|TextEncoder|TextDecoder|WebSocket|history|screen|Symbol|Reflect|Proxy|encodeURIComponent|decodeURIComponent|DOMParser|XMLHttpRequest|Infinity|NaN|arguments|jQuery|\$|Hammer|pako|chrome|RegExp|queueMicrotask|devicePixelRatio|innerWidth|innerHeight|scrollX|scrollY|File|FormData|AbortController|DataTransfer|ClipboardItem|Notification|Audio|AudioContext|Function|BigInt|globalThis|self|top|parent|frames|IntersectionObserver|PointerEvent|TouchEvent|WheelEvent|Node|NodeFilter|Element|HTMLCanvasElement|CanvasRenderingContext2D|Path2D|DOMMatrix|getSelection|open|close|print|escape|unescape|isSecureContext|indexedDB|caches|createImageBitmap|DOMRect|Worker|MessageChannel|BroadcastChannel|Response|Request|Headers|Intl|SyntaxError|TypeError|RangeError|EvalError|ReferenceError|URIError|AggregateError|Float32Array|Float64Array|Int32Array|Uint16Array|Uint32Array|Int8Array|Int16Array|ArrayBuffer|DataView|eval|name|status|event)$/;
+console.log("\nglobals used by injected.js that are neither FM nor browser:",[...globalsUsed.keys()].filter(k=>!fmTop.has(k)&&!browserish.test(k)).join(", "));
+// member names accessed on FM objects: collect X.y where root is FM global
+const missing=new Map();
+tr(inj,{MemberExpression(x){if(x.node.computed)return;let r=x.node;while(t.isMemberExpression(r.object))r=r.object; const root=r.object; if(!t.isIdentifier(root)||!fmTop.has(root.name))return; if(x.scope.hasBinding(root.name))return;
+  const n=x.node.property.name; if(!fmMembers.has(n)&&!injDefs.has(n)&&!/^(length|push|prototype|call|apply|bind|constructor|forEach|map|filter|find|indexOf|includes|keys|values|entries|slice|splice|join|toString|x|y|width|height|then|catch)$/.test(n)) missing.set(n,(missing.get(n)||[]).concat(x.node.loc.start.line));}});
+console.log("\nmembers on FM objects not defined anywhere in merged FM or injected.js:");
+for(const [k,v] of missing) console.log(`  .${k}  lines ${[...new Set(v)].slice(0,8).join(",")}`);

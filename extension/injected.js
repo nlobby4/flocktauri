@@ -85,6 +85,8 @@ class ModSocket{
             console.log("Mod server connected");
             this.reconnectAttempts = 0;
             this.isConnected = true;
+            // JOIN sent while connecting (or before a reconnect) goes out now
+            if (this.lastJoin) this.socket.send(JSON.stringify(this.lastJoin));
         }
         
         this.socket.onmessage = (event) => {
@@ -170,10 +172,12 @@ class ModSocket{
 
     
     send(data){
-        if(this.socket.readyState === WebSocket.OPEN){
+        // remember the room we are in, so it is (re)sent whenever the socket opens
+        if (data && data.type === 'JOIN') this.lastJoin = data;
+        if(this.socket && this.socket.readyState === WebSocket.OPEN){
             this.socket.send(JSON.stringify(data));
         } else {
-            console.log("Cannot send - mod socket not open");
+            if (!(data && data.type === 'JOIN')) console.log("Cannot send - mod socket not open");
         }
     }
 }
@@ -262,6 +266,7 @@ class ModHandler{
             trollmonitor = new TrollMonitor();
         }
         this.setupRoomOverrides();
+        wiggleCrown();
 
         // Only connect to mod socket if setting is enabled
         if (window.modSettings?.serverConnection) {
@@ -313,10 +318,12 @@ class ModHandler{
             }
 
             this.startReconnectWatcher();
+            setupLoginExtras();
 
             messagehandler = new MessageHandler();
             broadcasthandler = new BroadcastHandler();
             messagehandler.register('BROADCAST', broadcasthandler.handle, broadcasthandler);
+            messagehandler.register('BC', broadcasthandler.handle, broadcasthandler); // FM 13.5.7 name
 
             window.socket.ws.onmessage = function(message) {
                 messagehandler.handle(message);
@@ -531,14 +538,14 @@ class ModHandler{
         */
 
         const originalShowDialog = window.UI.dialogHandler.showDialog;
-        window.UI.dialogHandler.showDialog = function(dialogName, params) {
+        window.UI.dialogHandler.showDialog = function(dialogName, ...args) {
             
             if (dialogName === "modD" && !this.dialogs["modD"]) {
                 console.log("[Mod] Dialog doesn't exist, creating...");
                 this.createDialog("modD");
             }
             
-            return originalShowDialog.call(this, dialogName, params);
+            return originalShowDialog.call(this, dialogName, ...args);
         };
 
         const waitForDialogHandler = () => {
@@ -581,10 +588,13 @@ class ModHandler{
                         handler.zindex--;
                         handler.openedDialogs--;
                         handler.deactivateDialogs();
-                        if (handler.openedDialogs <= 0 && this.blockBackground) {
+                        // Same as FM 13.5.7's own close handler, plus a guard: getNextVisibleDialog()
+                        // returns null when nothing else is open.
+                        if (handler.openedDialogs <= 0) {
                             handler.unblockBackground();
                         } else {
-                            handler.activateDialog(handler.getNextVisibleDialog());
+                            const next = handler.getNextVisibleDialog();
+                            if (next) handler.activateDialog(next);
                         }
                         $(handler).triggerHandler(new dialogClosedEvent(modsDialogInject.name).getEvent());
                     });
@@ -797,6 +807,9 @@ function createModsDialogInjectClass() {
                     </button>
 
                   </div>
+                  <button name="openZexiumMenu" class="dMenuSwitch">
+                    <i class="fas fa-star"></i> Zexium mods
+                  </button>
                 </div>
 
                 <div class="main-content" style="
@@ -822,6 +835,13 @@ function createModsDialogInjectClass() {
 
         attachEvents() {
             const _this = this;
+
+            this.content.find('button[name="openZexiumMenu"]')
+              .on(UI.pointerEvent("click"), function (event) {
+                event.preventDefault();
+                _this.hide();
+                UI.dialogHandler.showDialog("mods");
+              });
 
             this.content.find(".subcontentOption")
               .on(UI.pointerEvent("click"), function (event) {
@@ -865,7 +885,7 @@ function createModsDialogInjectClass() {
                         </label>
                         <label style="display: block; margin-bottom: 8px; cursor: pointer;">
                             <input type="checkbox" name="custom-default-styles" style="margin-right: 8px;">
-                            Enable Default Theme
+                            Enable Default Theme Override
                         </label>
                         <label style="display: block; margin-bottom: 8px; cursor: pointer;">
                             <input type="checkbox" name="custom-css" style="margin-right: 8px;">
@@ -1065,8 +1085,7 @@ function createModsDialogInjectClass() {
                   </h2>
                   <p style="color: rgba(236, 240, 241, 0.75); line-height: 1.6; margin-bottom: 8px;">
                     <strong style="color: #ecf0f1;">Modded User Network:</strong><br>
-                    Allows connection to a private Deno server to identify other modded users and sync with them. 
-                    Also adds a little crown next to a modded user's name.
+                    Probably not working right now since the update
                   </p>
                   <p style="color: rgba(236, 240, 241, 0.75); line-height: 1.6; margin-bottom: 8px;">
                     <strong style="color: #ecf0f1;">Troll Detection & Alerts:</strong><br>
@@ -1140,6 +1159,125 @@ function createModsDialogInjectClass() {
 }
 
 
+// Login window extras: a rank colour legend, and a one-time "disable the theme" hint.
+const THEME_HINT_DISMISSED_KEY = "dThemeHintDismissed";
+// D's note on the login window (from rant.txt)
+const D_NOTE_TITLE = "<div class=\"dNoteTitle\">Has AI been used in the creation of this newest edition of Flockmod? Likely so...</div>";
+const D_NOTE_BODY = "<p>Hello friends, it&#x27;s D.</p><p>I must preface this with my own thoughts on AI.<br>I abhor the usage of AI for creating images or art of any kind. I feel like there is zero practical value in the generation of images/videos using AI.<br>It exists as a means to destroy human creativity and override it with garbage.<br>This being said, as a computer science guy, I am overwhelmed by the coding potential of AI.<br>I have used it myself and I think very few programmers can really ignore its influence.<br>It is an incredible thing and a depressing thing all at once.<br>I can do so much more work in one day. Yet I am torn by my own anti-AI sentiments.<br>It feels like I&#x27;m creating so many things yet understanding little of it.<br>It&#x27;s quite a depressing path that humanity is forced down, with no clear end goal.<br>Fuck, dude.</p><p>With this in mind, it&#x27;s only a matter of time before all people who code will be tempted by AI.<br>I don&#x27;t hate auto for using it. It fixed his bugs, and allowed him to get this nice new gallery update out.<br>Who knows what the future could bring?<br>This app exists to faciliate human art, and so I can give it a tentative pass on the usage of AI.<br>Am I mad that auto replaced my beautiful front page with his slop? A bit.<br>But I suppose it&#x27;s the way the world is going and it won&#x27;t slow down.<br>(I just hope auto rewrites that shitty AI text on the main page dude)</p><p>Okay that&#x27;s my rant. Hopefully auto will tone it down a bit in the future.<br>I think I&#x27;m going to try and ease off the AI myself as it is very mentally draining.</p><p>, D</p>";
+const RANK_LEGEND = [
+    ["UU", "Unregistered"],
+    ["RU", "Registered"],
+    ["TU", "Trusted"],
+    ["RM", "Moderator"],
+    ["FM", "Full moderator"],
+    ["LM", "Lead moderator"],
+    ["RO", "Room owner"],
+    ["GM", "Administrator"],
+];
+function setupLoginExtras() {
+    const $login = $('.dialog[name="login"]').first();
+    if (!$login.length) {
+        setTimeout(setupLoginExtras, 200);
+        return;
+    }
+    // both windows live in the dialogs' holder so they stack above the welcome backdrop
+    const $holder = $login.parent().length ? $login.parent() : $("body");
+
+    // rank colours: a tall window to the left of the login window, one rank per row
+    let $legend = $(".dRankLegend");
+    if (!$legend.length) {
+        const rows = RANK_LEGEND.map(([rank, label]) =>
+            `<div class="dRankItem dRank${rank}"><span class="dRankSwatch"></span>${label}</div>`
+        ).join("");
+        $legend = $(`<div class="dRankLegend"><div class="dRankLegendTitle">Rank colours</div>${rows}</div>`);
+        $holder.append($legend);
+    }
+
+    // "hate this theme?" hint: a small window to the right, only while the theme is on, and
+    // never again once closed
+    let dismissed = false;
+    try { dismissed = localStorage.getItem(THEME_HINT_DISMISSED_KEY) === "1"; } catch (e) {}
+    let $hint = $(".dThemeHint");
+    if (!dismissed && window.modSettings?.customDefaultStyles && !$hint.length) {
+        $hint = $(`
+            <div class="dThemeHint">
+                <button type="button" class="dThemeHintClose" title="Don't show this again">&times;</button>
+                Hate this default theme? <a href="#" class="dThemeHintDisable">Disable it</a>
+            </div>`);
+        const dismiss = () => {
+            try { localStorage.setItem(THEME_HINT_DISMISSED_KEY, "1"); } catch (e) {}
+            $hint.fadeOut(200, () => $hint.remove());
+        };
+        $hint.find(".dThemeHintClose").on("click", (e) => {
+            e.preventDefault();
+            dismiss();
+        });
+        $hint.find(".dThemeHintDisable").on("click", (e) => {
+            e.preventDefault();
+            window.modSettings.customDefaultStyles = false;
+            saveSettings(window.modSettings);
+            mod.revertToOriginalTheme();
+            dismiss();
+        });
+        $holder.append($hint);
+    }
+
+    // D's note: a scrollable window on the right, under the theme hint
+    // collapsed to its first line; the header toggles the rest open
+    if (!$(".dNote").length) {
+        const $note = $(`<div class="dNote collapsed"><div class="dNoteHeader"><i class="fas fa-chevron-down dNoteCaret"></i>${D_NOTE_TITLE}</div><div class="dNoteBody">${D_NOTE_BODY}</div></div>`);
+        $note.find(".dNoteHeader").on("click", () => $note.toggleClass("collapsed"));
+        $holder.append($note);
+    }
+
+    // keep them beside the login window as it moves, and hidden while it is closed
+    if (setupLoginExtras.follow) return;
+    const GAP = 12;
+    const place = () => {
+        const visible = $login.is(":visible") && !$login.hasClass("dialogInvisible");
+        const $l = $(".dRankLegend"), $h = $(".dThemeHint"), $n = $(".dNote");
+        if (!visible) {
+            $l.hide();
+            $h.hide();
+            $n.hide();
+            return;
+        }
+        const r = $login[0].getBoundingClientRect();
+        if ($l.length) {
+            const w = $l.outerWidth() || 150;
+            // left of the window, or below its left edge when the screen is too narrow
+            $l.css(r.left - GAP - w >= 8 ? { left: r.left - GAP - w, top: r.top } : { left: r.left, top: r.bottom + GAP }).show();
+        }
+        if ($h.length) {
+            const w = $h.outerWidth() || 220;
+            $h.css(r.right + GAP + w <= window.innerWidth - 8 ? { left: r.right + GAP, top: r.top } : { left: Math.max(8, r.right - w), top: r.bottom + GAP }).show();
+        }
+        if ($n.length) {
+            const w = $n.outerWidth() || 280;
+            const hintShown = $h.length && $h.is(":visible");
+            if (r.right + GAP + w <= window.innerWidth - 8) {
+                // under the hint, ending at the bottom of the login window
+                const top = hintShown ? $h[0].getBoundingClientRect().bottom + GAP : r.top;
+                $n.css({ left: r.right + GAP, top, maxHeight: Math.max(160, r.bottom - top) }).show();
+            } else {
+                $n.hide(); // no room beside the window on small screens
+            }
+        }
+    };
+    place();
+    setupLoginExtras.follow = setInterval(place, 300);
+}
+
+// A short wiggle on the crown button (on joining a room).
+function wiggleCrown() {
+    const $icon = $('a[name="modSettings"] i');
+    if (!$icon.length) return;
+    $icon.removeClass("dCrownWiggle");
+    void $icon[0].offsetWidth; // restart the animation if it is already running
+    $icon.addClass("dCrownWiggle");
+    $icon.one("animationend", () => $icon.removeClass("dCrownWiggle"));
+}
+
 function setupUI() {
     // Wait for jQuery to be available
     if (typeof $ === 'undefined') {
@@ -1173,10 +1311,43 @@ function setupUI() {
     const $targetContainer = $('.navbar-nav.topbarButtons'); 
 
     if ($targetContainer.length) {
-        $targetContainer.prepend(newButtonHTML); 
-        
+        $targetContainer.prepend(newButtonHTML);
+
+        // Zexium's mod menu gets a button to the D menu at the bottom of its sidebar
+        $(document).on('click', '.dialog[name="mods"] button[name="openDMenu"]', function(e) {
+            e.preventDefault();
+            UI.dialogHandler.hideDialog("mods");
+            UI.dialogHandler.showDialog("modD");
+        });
+        const addDMenuButton = () => {
+            const $sidebar = $('.dialog[name="mods"] .sidebar');
+            if ($sidebar.length && !$sidebar.find('button[name="openDMenu"]').length) {
+                $sidebar.append('<button name="openDMenu" class="dMenuSwitch"><i class="fas fa-crown"></i> D mod settings</button>');
+            }
+        };
+        addDMenuButton();
+        $(UI.dialogHandler).on('dialogOpened', function(e) {
+            if (e.name === 'mods') addDMenuButton();
+        });
+
+        // animate the crown and point at it until it is first clicked
+        const $crownItem = $(buttonSelector).closest('li');
+        const $crownIcon = $(buttonSelector).find('i');
+        $crownItem.css('position', 'relative');
+        $crownIcon.addClass('dCrownAnimate');
+        const $hint = $('<div class="dCrownHint">Change D mod settings here</div>');
+        $crownItem.append($hint);
+        const dismissHint = () => {
+            $hint.addClass('dCrownHintOut');
+            setTimeout(() => $hint.remove(), 600);
+        };
+        const hintTimer = setTimeout(dismissHint, 8000);
+
         $(document).on('click', buttonSelector, function(e) {
-            e.preventDefault(); 
+            e.preventDefault();
+            clearTimeout(hintTimer);
+            dismissHint();
+            $crownIcon.removeClass('dCrownAnimate');
             UI.dialogHandler.showDialog("modD");
         });
     } else {
@@ -1214,7 +1385,20 @@ class MessageHandler{
         }
     }
     handle(message){
-        const json = JSON.parse(decryptMessage(message.data, socket.encryption));
+        // FM 13.5.7 can send gzipped "GZ:" frames; socket.decode handles those. Never throw here,
+        // or the socket.receive call after us in the onmessage wrapper gets skipped.
+        let json = null;
+        try {
+            if (typeof socket.decode === "function") {
+                json = socket.decode(message.data, socket.encryption)
+                    || socket.decode(message.data, socket.encryption === "rot13" ? "none" : "rot13");
+            } else {
+                json = JSON.parse(decryptMessage(message.data, socket.encryption));
+            }
+        } catch (e) {
+            return;
+        }
+        if (!json) return;
         if (this.handlers.has(json.command)){
             const handlers = this.handlers.get(json.command);
 
@@ -1300,6 +1484,7 @@ class Copier {
 
     registerHandlers(messageHandler) {
         messageHandler.register('BROADCAST', this.onBroadcast, this);
+        messageHandler.register('BC', this.onBroadcast, this); // FM 13.5.7 name
         messageHandler.register('IMG', this.onImage, this);
         messageHandler.register('CHATMSG', this.onChatMessage, this);
     }
@@ -1834,8 +2019,8 @@ class Drawbot {
 
     send_msg(type, name, msg) {
         let socketMessage = {
-            command: "USERFUNCTIONS",
-            option: "CHAT",
+            command: "USERSET", // FM 13.5.7 (was USERFUNCTIONS / option: "CHAT")
+            action: "Chat",
             chattype: type,
             chatname: name,
             message: msg
@@ -2078,6 +2263,193 @@ class Drawbot {
             await this.draw_rect(size, x1, x2, y_start, y_end);
             await this.wait(delay);
         }
+    }
+
+    async draw_line(size, x1, y1, x2, y2, color = "#000") {
+        this.cch(color);
+        this.bop("size", size);
+        this.bch("pen");
+
+        this.pd(x1, y1);
+        await this.wait(2);
+
+        this.pm(x2, y2);
+        await this.wait(2);
+
+        this.pu(x2, y2);
+    }
+
+    // Generic grid repeater: splits (x1,x2,y1,y2) into rows x cols cells and
+    // calls patternFn(cx1, cx2, cy1, cy2, row, col) for each one, in the same
+    // loop-and-wait style as draw_grid. patternFn is called with `this` bound
+    // to this Drawbot, so it can use draw_rect/draw_line/fill_rect/etc.
+    async repeat_pattern(x1, x2, y1, y2, rows, cols, patternFn, delay = 15) {
+        let x_step = (x2 - x1) / cols;
+        let y_step = (y2 - y1) / rows;
+
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                if (!this.animate) return;
+
+                let cx1 = x1 + col * x_step;
+                let cx2 = cx1 + x_step;
+                let cy1 = y1 + row * y_step;
+                let cy2 = cy1 + y_step;
+
+                await patternFn.call(this, cx1, cx2, cy1, cy2, row, col);
+                await this.wait(delay);
+            }
+        }
+    }
+
+    async draw_checkerboard(x1, x2, y1, y2, rows, cols, color1 = "#000", color2 = "#fff", delay = 15) {
+        await this.repeat_pattern(x1, x2, y1, y2, rows, cols, async function(cx1, cx2, cy1, cy2, row, col) {
+            let color = (row + col) % 2 === 0 ? color1 : color2;
+            this.cch(color);
+            await this.fill_rect(cx1, cx2, cy1, cy2);
+        }, delay);
+    }
+
+    async draw_concentric_rects(size, cx, cy, count, spacing, colors = ["#000"], delay = 15) {
+        for (let i = 0; i < count; i++) {
+            if (!this.animate) return;
+
+            let half = spacing * (i + 1);
+            let color = colors[i % colors.length];
+
+            await this.draw_rect(size, cx - half, cx + half, cy - half, cy + half, color);
+            await this.wait(delay);
+        }
+    }
+
+    async draw_radial_burst(size, cx, cy, radius, spokes, color = "#000", delay = 15) {
+        for (let i = 0; i < spokes; i++) {
+            if (!this.animate) return;
+
+            let angle = (2 * Math.PI * i) / spokes;
+            let x2 = cx + Math.cos(angle) * radius;
+            let y2 = cy + Math.sin(angle) * radius;
+
+            await this.draw_line(size, cx, cy, x2, y2, color);
+            await this.wait(delay);
+        }
+    }
+
+    async draw_spiral(size, cx, cy, loops = 4, pointsPerLoop = 24, growth = 5, color = "#000", delay = 5) {
+        this.cch(color);
+        this.bop("size", size);
+        this.bch("pen");
+
+        let prevX = cx;
+        let prevY = cy;
+        this.pd(prevX, prevY);
+        await this.wait(2);
+
+        let totalPoints = loops * pointsPerLoop;
+        for (let i = 1; i <= totalPoints; i++) {
+            if (!this.animate) break;
+
+            let angle = (2 * Math.PI * i) / pointsPerLoop;
+            let radius = growth * (i / pointsPerLoop);
+            let x = cx + Math.cos(angle) * radius;
+            let y = cy + Math.sin(angle) * radius;
+
+            this.pm(x, y);
+            await this.wait(delay);
+
+            prevX = x;
+            prevY = y;
+        }
+
+        this.pu(prevX, prevY);
+    }
+
+    randomColor() {
+        return "#" + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, "0");
+    }
+
+    randInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // Cycles randomly through all the pattern methods above, forever, with
+    // randomized positions/sizes/colours. Stop it with drawbot.stopAnim().
+    async chaos(delay = 15) {
+        this.animate = true;
+        const kinds = ["checkerboard", "concentric", "burst", "spiral", "field"];
+
+        while (this.animate) {
+            let kind = kinds[this.randInt(0, kinds.length - 1)];
+            let cx = this.randInt(100, this.boardWidth - 100);
+            let cy = this.randInt(100, this.boardHeight - 100);
+            let color1 = this.randomColor();
+            let color2 = this.randomColor();
+            let color3 = this.randomColor();
+
+            switch (kind) {
+                case "checkerboard":
+                    await this.draw_checkerboard(
+                        0, this.boardWidth, 0, this.boardHeight,
+                        this.randInt(3, 8), this.randInt(3, 8),
+                        color1, color2, delay
+                    );
+                    break;
+
+                case "concentric":
+                    await this.draw_concentric_rects(
+                        this.randInt(2, 10), cx, cy,
+                        this.randInt(4, 10), this.randInt(20, 60),
+                        [color1, color2, color3], delay
+                    );
+                    break;
+
+                case "burst":
+                    await this.draw_radial_burst(
+                        this.randInt(2, 8), cx, cy,
+                        this.randInt(100, 300), this.randInt(8, 32),
+                        color1, delay
+                    );
+                    break;
+
+                case "spiral":
+                    await this.draw_spiral(
+                        this.randInt(2, 6), cx, cy,
+                        this.randInt(2, 6), this.randInt(12, 36), this.randInt(20, 60),
+                        color1, Math.max(1, Math.floor(delay / 3))
+                    );
+                    break;
+
+                case "field":
+                    await this.draw_pattern_field(
+                        0, this.boardWidth, 0, this.boardHeight,
+                        this.randInt(2, 4), this.randInt(2, 5),
+                        async function(fx, fy) {
+                            if (Math.random() < 0.5) {
+                                await this.draw_spiral(2, fx, fy, this.randInt(1, 3), 16, this.randInt(15, 30), this.randomColor(), 3);
+                            } else {
+                                await this.draw_radial_burst(2, fx, fy, this.randInt(30, 80), this.randInt(6, 12), this.randomColor(), 3);
+                            }
+                        }, delay
+                    );
+                    break;
+            }
+
+            if (!this.animate) break;
+
+            await this.wait(delay * 4);
+            await this.clear_rect(0, this.boardWidth, 0, this.boardHeight);
+            await this.wait(delay * 2);
+        }
+    }
+
+    // Repeats any pattern function (e.g. draw_spiral, draw_radial_burst) at
+    // evenly spaced centre points across a region, cycling through colours.
+    async draw_pattern_field(x1, x2, y1, y2, rows, cols, patternFn, delay = 15) {
+        await this.repeat_pattern(x1, x2, y1, y2, rows, cols, async function(cx1, cx2, cy1, cy2, row, col) {
+            let cx = (cx1 + cx2) / 2;
+            let cy = (cy1 + cy2) / 2;
+            await patternFn.call(this, cx, cy, row, col);
+        }, delay);
     }
 
     async strobe(delay) {
@@ -2947,28 +3319,418 @@ tbody#userlist > tr.myself{
 .badge.badge-secondary{
     background-color: var(--bs-primary);
 }
+/* Zexium mod menu ("mods" dialog) on the D palette */
+.dialog[name="mods"] .main-content{
+    background-color: #2c3e50 !important;
+    color: #ecf0f1 !important;
+}
+.dialog[name="mods"] #undoContainer,
+.dialog[name="mods"] #tweaksContainer,
+.dialog[name="mods"] #messengerContainer,
+.dialog[name="mods"] #ipStatsContainer{
+    background-color: #17232f !important;
+    color: #ecf0f1 !important;
+}
+.dialog[name="mods"] .sidebar,
+.dialog[name="mods"] .tab-buttons,
+.dialog[name="mods"] #ipStatsButtons,
+.dialog[name="mods"] .trackers-settings .tracker-toggle{
+    background-color: #1a2631 !important;
+    border-color: #212e3b !important;
+}
+.dialog[name="mods"] .subcontentOption,
+.dialog[name="mods"] .action-button,
+.dialog[name="mods"] #ipStatsButtons button,
+.dialog[name="mods"] #tweaksButtons button{
+    background-color: #34495e !important;
+    color: #ecf0f1 !important;
+    border-color: #212e3b !important;
+}
+.dialog[name="mods"] .subcontentOption:hover,
+.dialog[name="mods"] .action-button:hover,
+.dialog[name="mods"] #ipStatsButtons button:hover,
+.dialog[name="mods"] #tweaksButtons button:hover,
+.dialog[name="mods"] .subcontentOption.active,
+.dialog[name="mods"] .subcontentOption.selected{
+    background-color: var(--bs-primary) !important;
+    color: #fff !important;
+}
+.dialog[name="mods"] .tab-button{
+    color: #95a5a6 !important;
+}
+.dialog[name="mods"] .tab-button:hover:not(.active){
+    background-color: #34495e !important;
+    color: #ecf0f1 !important;
+}
+.dialog[name="mods"] .tab-button.active{
+    color: var(--bs-primary) !important;
+    border-color: var(--bs-primary) !important;
+}
+.dialog[name="mods"] .styled-input,
+.dialog[name="mods"] .styled-dropdown,
+.dialog[name="mods"] input[type="text"],
+.dialog[name="mods"] input[type="number"],
+.dialog[name="mods"] select{
+    background-color: #1e2c39 !important;
+    color: #ecf0f1 !important;
+    border: 1px solid #212e3b !important;
+}
+.dialog[name="mods"] .styled-checkbox{
+    background-color: #1e2c39 !important;
+    border-color: #212e3b !important;
+}
+.dialog[name="mods"] .styled-checkbox:checked{
+    background-color: var(--bs-primary) !important;
+    border-color: var(--bs-primary) !important;
+}
+.dialog[name="mods"] .styled-checkbox{
+    width: 18px !important;
+    height: 18px !important;
+    flex: 0 0 18px;
+    border-width: 1px !important;
+    transition: background-color 0.15s ease;
+}
+/* a drawn white tick instead of the green check glyph */
+.dialog[name="mods"] .styled-checkbox:checked::after{
+    content: "" !important;
+    width: 5px;
+    height: 10px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    background: none !important;
+    font-size: 0 !important;
+    transform: translate(-50%, -60%) rotate(45deg) !important;
+}
+
+/* narrower sidebar */
+.dialog[name="mods"] .sidebar{
+    width: 115px !important;
+    flex: 0 0 115px;
+    padding: 8px 6px !important;
+}
+.dialog[name="mods"] .subcontentOption{
+    font-size: 12px !important;
+    padding: 8px 6px !important;
+}
+
+/* tweaks: plain checkbox options two per row; sliders, dropdowns and button rows stay full width */
+.dialog[name="mods"] #tweaksContainer{
+    padding: 8px 12px 8px 12px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 14px;
+    align-content: start;
+}
+.dialog[name="mods"] #tweaksContainer > *{
+    grid-column: 1 / -1;
+}
+.dialog[name="mods"] #tweaksContainer > .form-group:has(.styled-checkbox):not(:has(select, button, input:not([type="checkbox"]))){
+    grid-column: auto;
+    margin-bottom: 8px !important;
+}
+.dialog[name="mods"] #tweaksContainer > .form-group label{
+    font-size: 12px;
+    line-height: 1.25;
+}
+.dialog[name="mods"] input[type="checkbox"]{
+    accent-color: var(--bs-primary);
+}
+.dialog[name="mods"] label,
+.dialog[name="mods"] .trackers-settings .tracker-toggle-label{
+    color: #ecf0f1 !important;
+}
+.dialog[name="mods"] p,
+.dialog[name="mods"] .trackers-settings .tracker-description{
+    color: #95a5a6 !important;
+}
+.dialog[name="mods"] h2,
+.dialog[name="mods"] h3,
+.dialog[name="mods"] .trackers-settings .tracker-title i{
+    color: var(--bs-primary) !important;
+}
+.dialog[name="mods"] .section-header{
+    border-color: #212e3b !important;
+}
+.dialog[name="mods"] .trackers-settings .tracker-section{
+    background-color: #1a2631 !important;
+}
+.dialog[name="mods"] .trackers-settings .slider{
+    background-color: #34495e !important;
+}
+.dialog[name="mods"] .trackers-settings input:checked + .slider,
+.dialog[name="mods"] .trackers-settings .reload-button{
+    background-color: var(--bs-primary) !important;
+}
+.dialog[name="mods"] ::-webkit-scrollbar-track{
+    background: #17232f !important;
+}
+.dialog[name="mods"] ::-webkit-scrollbar-thumb{
+    background: #34495e !important;
+}
+.dialog[name="mods"] ::-webkit-scrollbar-thumb:hover{
+    background: var(--bs-primary) !important;
+}
+
+/* switch between the Zexium menu and the D menu, pinned to the bottom of each sidebar */
+.dialog[name="mods"] .sidebar,
+.dialog[name="modD"] .sidebar{
+    display: flex !important;
+    flex-direction: column;
+}
+.dMenuSwitch{
+    margin-top: auto;
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 4px;
+    background-color: var(--bs-primary);
+    color: #fff;
+    font-size: 13px;
+    font-weight: normal;
+    text-align: left;
+    cursor: pointer;
+}
+/* Zexium's "D mod settings" button: crown on top, label on one line under it */
+.dMenuSwitch[name="openDMenu"]{
+    text-align: center;
+    white-space: nowrap;
+    font-size: 12px;
+    padding: 8px 4px;
+}
+.dMenuSwitch[name="openDMenu"] i{
+    display: block;
+    margin-bottom: 4px;
+    font-size: 16px;
+}
+.dMenuSwitch:hover{
+    filter: brightness(1.15);
+}
+
+/* crown (D mod settings) button: bob + glow, and a hint bubble */
+@keyframes dCrownBob{
+    0%, 100%{ transform: translateY(0) rotate(0deg); filter: drop-shadow(0 0 0 rgba(var(--bs-primary-rgb), 0)); }
+    25%{ transform: translateY(-3px) rotate(-8deg); }
+    50%{ transform: translateY(0) rotate(0deg); filter: drop-shadow(0 0 6px rgba(var(--bs-primary-rgb), 0.9)); }
+    75%{ transform: translateY(-2px) rotate(8deg); }
+}
+@keyframes dCrownWiggle{
+    0%{ transform: rotate(0deg) scale(1); }
+    10%{ transform: rotate(-18deg) scale(1.15); }
+    25%{ transform: rotate(16deg) scale(1.15); }
+    40%{ transform: rotate(-12deg) scale(1.1); }
+    55%{ transform: rotate(9deg) scale(1.05); }
+    70%{ transform: rotate(-5deg); }
+    85%{ transform: rotate(3deg); }
+    100%{ transform: rotate(0deg) scale(1); }
+}
+.dCrownWiggle{
+    display: inline-block;
+    transform-origin: 50% 80%;
+    animation: dCrownWiggle 0.9s ease-in-out !important;
+}
+.dCrownAnimate{
+    display: inline-block;
+    animation: dCrownBob 1.6s ease-in-out 3; /* about 5 seconds, then it stops */
+}
+.dCrownHint{
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100000;
+    white-space: nowrap;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background-color: var(--bs-primary);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+    animation: dCrownHintIn 0.35s ease-out;
+    transition: opacity 0.6s ease;
+}
+.dCrownHint::before{
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-bottom-color: var(--bs-primary);
+}
+.dCrownHint.dCrownHintOut{
+    opacity: 0;
+}
+@keyframes dCrownHintIn{
+    from{ opacity: 0; transform: translate(-50%, -4px); }
+    to{ opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* login window: rank legend and theme hint */
+.dRankLegend{
+    pointer-events: auto;
+    position: fixed;
+    z-index: 100000;
+    width: 150px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background-color: #1a2631;
+    border: 1px solid #212e3b;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    font-size: 0.8rem;
+}
+.dRankLegendTitle{
+    font-size: 0.75rem;
+    color: #95a5a6;
+    margin-bottom: 6px;
+}
+.dRankItem{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+}
+.dRankSwatch{
+    flex: 0 0 10px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: currentColor;
+}
+.dRankItem.dRankUU{ color: #bdbdbd; }
+.dRankItem.dRankRU{ color: #fff; }
+.dRankItem.dRankTU{ color: #ffda35; }
+.dRankItem.dRankRM{ color: #1db924; }
+.dRankItem.dRankFM{ color: #2bd3e6; }
+.dRankItem.dRankLM{ color: #3981c4; }
+.dRankItem.dRankRO{ color: #ff8725; }
+.dRankItem.dRankGM{ color: #ff20da; }
+.dThemeHint{
+    pointer-events: auto;
+    position: fixed;
+    z-index: 100000;
+    width: 220px;
+    padding: 10px 28px 10px 12px;
+    border-radius: 6px;
+    background-color: #1a2631;
+    border: 1px solid var(--bs-primary);
+    color: #ecf0f1;
+    font-size: 0.8rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.dThemeHint a{
+    cursor: pointer !important;
+    color: var(--bs-primary);
+    text-decoration: underline;
+}
+.dThemeHintClose{
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    border: none;
+    background: none;
+    color: #95a5a6;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer !important;
+}
+.dThemeHintClose:hover{
+    color: #fff;
+}
+
+.dNote{
+    pointer-events: auto;
+    position: fixed;
+    z-index: 100000;
+    width: 280px;
+    overflow-y: auto;
+    padding: 12px 14px;
+    border-radius: 6px;
+    background-color: #1a2631;
+    border: 1px solid #212e3b;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    color: #ecf0f1;
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+.dNoteHeader{
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    cursor: pointer;
+    user-select: none;
+}
+.dNoteTitle{
+    color: var(--bs-primary);
+    font-weight: 600;
+}
+.dNoteCaret{
+    color: var(--bs-primary);
+    font-size: 0.7rem;
+    transition: transform 0.2s ease;
+}
+.dNote.collapsed .dNoteCaret{
+    transform: rotate(-90deg);
+}
+.dNoteBody{
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #212e3b;
+}
+.dNote.collapsed .dNoteBody{
+    display: none;
+}
+.dNote p{
+    margin: 0 0 8px;
+}
+.dNote p:last-child{
+    margin-bottom: 0;
+}
+.dNote::-webkit-scrollbar{ width: 6px; }
+.dNote::-webkit-scrollbar-thumb{ background: #34495e; border-radius: 3px; }
+
+/* gallery tag buttons (13.5.7); colours from FlockMod's dark theme */
+.badge-gallerytag{
+    background-color: #44454a;
+    color: #fff;
+}
+.badge-galleryuser{
+    background-color: #aaafb2;
+    color: #000;
+}
+.badge-galleryspecial{
+    background-color: #c1af7d;
+    color: #000;
+}
 .navbar-brand{
     color:var(--bs-primary) !important;
 }
 .navbar-version{
     color: red !important;
 }
+/* colour only: the 13.4.0-era absolute positioning made the 13.5.7 splash title jump onto
+   the loading text the moment this theme loaded */
 .splashScreenText {
-    content: 'D' !important;
     color: var(--bs-primary) !important;
-    position: absolute;
-    overflow: hidden;
-    max-width: 7em;
     white-space: nowrap;
     transition: color 0.8s;
 }
 
 .blockwelcome:after {
-    content: "FlockMoD";
+    content: "flockmoD";
     font-size: 300%;
     font-weight: 700;
     padding: 20px;
     color: var(--bs-primary);
+    /* FM 13.5.7 draws a grey wordmark via an SVG mask in a fixed box; undo that so the text shows */
+    -webkit-mask: none !important;
+    mask: none !important;
+    background: none !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
 }
 .fas.cursorCenter{
     color: var(--bs-primary) !important;
@@ -2982,7 +3744,7 @@ tr.myself > td {
     font-weight: 350 !important;
 }
 
-.notifyMSG_room>span.rankrankUU,
+.notifyMSG_room>span.rankUU,
 tr > td.rankUU,
 .chatBlock > .msgUsername.rankUU{
     color: #bdbdbdff !important;
@@ -4824,3 +5586,54 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAyMDI1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==
 `;
 
 let customSound = new Audio(customSoundString);
+
+// flockmoD wordmark: FM 13.5.7 draws the brand as an SVG ("Flock" + a grey "Mod" path), so the
+// "D" can't be recolored in place. Swap each wordmark SVG for text with an orange capital D.
+(function flockmoDWordmark() {
+    const style = document.createElement("style");
+    style.textContent = `
+        .fmdWordmark { font-weight: 800; letter-spacing: -0.02em; line-height: 1; white-space: nowrap; }
+        .navbar-brand .fmdWordmark { font-size: 1.25rem; vertical-align: -0.05em; }
+        .fmdWordmark.splash { display: block; text-align: center; font-size: 4rem; }
+        .fmdWordmark .fmdMo { color: #7D8E96; }
+        .fmdWordmark .fmdD { color: var(--bs-primary); }
+    `;
+    (document.head || document.documentElement).appendChild(style);
+
+    const replace = () => {
+        document.querySelectorAll("svg.brandWordmark, svg.splashWordmark").forEach((svg) => {
+            const span = document.createElement("span");
+            span.className = "fmdWordmark" + (svg.classList.contains("splashWordmark") ? " splash" : "");
+            span.setAttribute("aria-label", "flockmoD");
+            span.innerHTML = 'flock<span class="fmdMo">mo</span><span class="fmdD">D</span>';
+            svg.replaceWith(span);
+        });
+    };
+    replace();
+    new MutationObserver(replace).observe(document.documentElement, { childList: true, subtree: true });
+})();
+
+// TEMP DIAGNOSTIC (remove once the leave-room "server refused" popups are fixed):
+// logs a stack for anything sent while not in a room.
+(function leaveRoomSendTrap() {
+    const install = () => {
+        if (typeof FrameBuffer === "undefined" || typeof Socket === "undefined" || !window.UI || typeof room === "undefined") return setTimeout(install, 500);
+        let leftAt = 0;
+        $(room).on("roomDisconnected youLeft", () => { leftAt = Date.now(); console.warn("[TRAP] left room"); });
+        const suspicious = () => !UI.inRoom || Date.now() - leftAt < 5000;
+        const where = () => new Error().stack.split("\n").slice(3, 12).map(s => s.trim()).join("\n    ");
+        const ob = FrameBuffer.prototype.outBuffer;
+        FrameBuffer.prototype.outBuffer = function (d, ...rest) {
+            if (suspicious()) console.warn("[TRAP] outBuffer while not in room: " + String(d).slice(0, 80) + "\n    " + where());
+            return ob.call(this, d, ...rest);
+        };
+        const ss = Socket.prototype.send;
+        Socket.prototype.send = function (d, ...rest) {
+            const s = typeof d === "string" ? d : JSON.stringify(d);
+            if (suspicious() && /"command":"(BC|DIRECT)"/.test(s)) console.warn("[TRAP] socket.send while not in room: " + s.slice(0, 100) + "\n    " + where());
+            return ss.call(this, d, ...rest);
+        };
+        console.log("[TRAP] leave-room send trap installed");
+    };
+    install();
+})();

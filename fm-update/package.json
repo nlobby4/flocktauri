@@ -1,0 +1,20 @@
+{
+  "name": "fm-update",
+  "version": "1.0.0",
+  "description": "",
+  "main": "base-13.4.0.deob.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@babel/generator": "^7.29.8",
+    "@babel/parser": "^7.29.9",
+    "@babel/traverse": "^7.29.8",
+    "@babel/types": "^7.29.8",
+    "prettier": "^3.9.9"
+  }
+}
