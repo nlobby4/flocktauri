@@ -1301,11 +1301,12 @@ class BrushEraser extends BrushStub {
   }
   redraw() {
     var v2_0 = this.getOption("pressure")[0] ? this.getOption("pressure")[1] : 1;
+    var v2_1 = this.surface.currentLayer == 0 && !room.bottomTransparency;
     this.surface.slate.setCanvasProperties({
       linejoin: "round",
       linecap: "round",
       linewidth: Math.max(this.getOption("size") * v2_0, 1),
-      strokestyle: room.board.backgroundColor,
+      strokestyle: v2_1 ? room.board.backgroundColor : room.board.displayBackgroundColor,
       alpha: 1,
       blendmode: "normal",
       blur: 0,
@@ -1319,8 +1320,8 @@ class BrushEraser extends BrushStub {
     );
     this.contextSlate.beginPath();
     this.contextSlate.moveTo(this.clicks[0].x, this.clicks[0].y);
-    for (var v2_1 = 0; v2_1 < this.clicks.length; v2_1++) {
-      this.contextSlate.lineTo(this.clicks[v2_1].x, this.clicks[v2_1].y);
+    for (var v2_2 = 0; v2_2 < this.clicks.length; v2_2++) {
+      this.contextSlate.lineTo(this.clicks[v2_2].x, this.clicks[v2_2].y);
     }
     this.contextSlate.stroke();
   }
@@ -10579,6 +10580,548 @@ class UIComponent extends Component {
   }
   focus() {}
 }
+class ContextMenu extends UIComponent {
+  constructor(v2_0) {
+    super(v2_0);
+    this.registrations = [];
+    this.counter = 0;
+    this.menu = null;
+    this.current = null;
+    this.items = [];
+    this.hover = -1;
+    this.deferred = [];
+    this.openedAt = 0;
+    this.bindDismissal();
+  }
+  register(v2_0) {
+    if (!v2_0 || !v2_0.selector || !$.isFunction(v2_0.build)) {
+      return;
+    }
+    var v2_1 = this;
+    var v2_2 = {
+      selector: v2_0.selector,
+      trigger: v2_0.trigger || "right",
+      build: v2_0.build,
+      namespace: ".fmContextMenu" + ++this.counter,
+    };
+    this.registrations.push(v2_2);
+    if (v2_2.trigger == "none") {
+      return;
+    }
+    var v2_3 = v2_2.trigger == "left" ? "click" : "contextmenu";
+    $(document).on(v2_3 + v2_2.namespace, v2_2.selector, function (v3_0) {
+      v3_0.preventDefault();
+      v3_0.stopPropagation();
+      var v3_1 = UI.getInputPosition(v3_0);
+      v2_1.show($(this), v3_1.x, v3_1.y, v2_2);
+    });
+  }
+  destroy(v2_0) {
+    var v2_1 = [];
+    for (var v2_2 = 0; v2_2 < this.registrations.length; v2_2++) {
+      var v2_3 = this.registrations[v2_2];
+      if (v2_3.selector === v2_0) {
+        $(document).off(v2_3.namespace);
+        if (this.current && this.current.registration === v2_3) {
+          this.hide();
+        }
+      } else {
+        v2_1.push(v2_3);
+      }
+    }
+    this.registrations = v2_1;
+  }
+  open(v2_0, v2_1, v2_2) {
+    var v2_3 = this.registrationFor(v2_0);
+    if (v2_3) {
+      this.show(v2_0, v2_1, v2_2, v2_3);
+    }
+  }
+  registrationFor(v2_0) {
+    for (var v2_1 = this.registrations.length - 1; v2_1 >= 0; v2_1--) {
+      if (v2_0.is(this.registrations[v2_1].selector)) {
+        return this.registrations[v2_1];
+      }
+    }
+    return null;
+  }
+  show(v2_0, v2_1, v2_2, v2_3) {
+    this.hide();
+    var v2_4 = v2_3.build(v2_0);
+    if (!v2_4) {
+      return;
+    }
+    v2_4.$trigger = v2_0;
+    this.current = {
+      options: v2_4,
+      $trigger: v2_0,
+      registration: v2_3,
+      returnFocusTo: document.activeElement,
+    };
+    this.render(v2_4);
+    this.place(v2_1, v2_2);
+    this.openedAt = Date.now();
+    $(this).triggerHandler("contextMenuShown");
+  }
+  render(v2_0) {
+    var v2_1 = this;
+    this.items = [];
+    this.hover = -1;
+    this.deferred = [];
+    this.menu = $("<ul></ul>").addClass("context-menu-list context-menu-root").attr("role", "menu");
+    $.each(v2_0.items || {}, function (v3_0, v3_1) {
+      if (!v3_1) {
+        return;
+      }
+      if (v2_1.ask(v3_1.visible, v3_0, v2_0, true) === false) {
+        return;
+      }
+      var v3_2 = v2_1.row(v3_0, v3_1, v2_0);
+      if (v3_2) {
+        v2_1.menu.append(v3_2);
+      }
+    });
+    this.menu.on("contextmenu", function (v3_0) {
+      v3_0.preventDefault();
+    });
+    this.menu.on(UI.pointerEvent("down", "fmContextMenuItem"), function (v3_0) {
+      v3_0.stopPropagation();
+    });
+    this.menu.on("click", ".context-menu-activatable", function (v3_0) {
+      v3_0.preventDefault();
+      v3_0.stopPropagation();
+      v2_1.activate($(this).data("contextMenuKey"));
+    });
+    this.menu.on("mouseenter", ".context-menu-activatable", function () {
+      v2_1.setHover(v2_1.indexOfItem($(this)));
+    });
+    this.surface().append(this.menu);
+    while (this.deferred.length) {
+      this.deferred.shift()();
+    }
+  }
+  row(v2_0, v2_1, v2_2) {
+    if (v2_1.type == "cm_separator" || v2_1.type == "cm_seperator") {
+      return $("<li></li>")
+        .addClass("context-menu-separator context-menu-not-selectable")
+        .attr("role", "separator");
+    }
+    if (v2_1.type == "cm_header") {
+      this.menu.addClass("context-menu-panel");
+      return this.header(v2_1, v2_0, v2_2);
+    }
+    if (v2_1.type == "cm_group") {
+      this.menu.addClass("context-menu-panel");
+      return $("<li></li>")
+        .addClass("context-menu-group context-menu-not-selectable")
+        .text(this.label(v2_1.name, v2_0, v2_2));
+    }
+    if (v2_1.type == "cm_icons") {
+      this.menu.addClass("context-menu-panel");
+      return this.icons(v2_1, v2_2);
+    }
+    if (v2_1.type == "cm_switch") {
+      this.menu.addClass("context-menu-panel");
+      return this.toggle(v2_0, v2_1, v2_2);
+    }
+    if (v2_1.type == "cm_stepper") {
+      this.menu.addClass("context-menu-panel");
+      return this.stepper(v2_0, v2_1, v2_2);
+    }
+    return this.plain(v2_0, v2_1, v2_2);
+  }
+  plain(v2_0, v2_1, v2_2) {
+    var v2_3 = this.ask(v2_1.disabled, v2_0, v2_2, false) === true;
+    var v2_4 = $("<li></li>").addClass("context-menu-item").attr({
+      role: "menuitem",
+      tabindex: "-1",
+    });
+    if (v2_3) {
+      v2_4.addClass("context-menu-disabled").attr("aria-disabled", "true");
+    }
+    if (v2_1.danger) {
+      v2_4.addClass("context-menu-danger");
+    }
+    v2_4.text(this.label(v2_1.name, v2_0, v2_2));
+    if (v2_1.icon) {
+      v2_4.addClass(this.iconClass(v2_1.icon));
+    }
+    if (!v2_3) {
+      this.stop(v2_4, v2_0);
+    }
+    return v2_4;
+  }
+  header(v2_0, v2_1, v2_2) {
+    var v2_3 = $("<li></li>").addClass("context-menu-header context-menu-not-selectable");
+    var v2_4 = $("<span></span>")
+      .addClass("cm-head-name")
+      .text(this.label(v2_0.name, v2_1, v2_2));
+    if (v2_0.nameClass) {
+      v2_4.addClass(v2_0.nameClass);
+    }
+    var v2_5 = $("<div></div>").addClass("cm-head-line");
+    if (v2_0.color) {
+      v2_5.append($("<span></span>").addClass("cm-head-dot").css("background-color", v2_0.color));
+    }
+    v2_5.append(v2_4);
+    var v2_6 = this.label(v2_0.name, v2_1, v2_2);
+    if (v2_6) {
+      v2_5.append(this.copyButton(v2_6));
+    }
+    v2_3.append(v2_5);
+    if (v2_0.meta || v2_0.status) {
+      var v2_7 = $("<div></div>").addClass("cm-head-meta");
+      if (v2_0.meta) {
+        v2_7.append(
+          $("<span></span>")
+            .addClass(v2_0.metaClass || "")
+            .text(v2_0.meta),
+        );
+      }
+      if (v2_0.status) {
+        v2_7.append(document.createTextNode((v2_0.meta ? " · " : "") + v2_0.status));
+      }
+      v2_3.append(v2_7);
+    }
+    if (v2_0.ip) {
+      var v2_8 = $("<div></div>")
+        .addClass("cm-head-ip")
+        .append($("<span></span>").addClass("cm-head-ip-value").text(v2_0.ip));
+      if (v2_0.proxy) {
+        v2_8.append($("<span></span>").addClass("cm-head-proxy").text("proxy"));
+      }
+      v2_8.append(this.copyButton(v2_0.ip));
+      v2_3.append(v2_8);
+    }
+    return v2_3;
+  }
+  copyButton(v2_0) {
+    var v2_1 = $("<button></button>")
+      .addClass("cm-copy")
+      .attr({
+        type: "button",
+        tabindex: "-1",
+        "aria-label": textManager.getString("menu.textbox.copy", null, false),
+      })
+      .attr("title", textManager.getString("menu.textbox.copy", null, false))
+      .append($("<i></i>").addClass("fas fa-copy"));
+    v2_1.on(UI.pointerEvent("click"), function (v3_0) {
+      v3_0.preventDefault();
+      v3_0.stopPropagation();
+      copyToClipboard(v2_0);
+      var v3_1 = v2_1.find("i");
+      v2_1.addClass("is-done");
+      v3_1.removeClass("fa-copy").addClass("fa-check");
+      setTimeout(function () {
+        v2_1.removeClass("is-done");
+        v3_1.removeClass("fa-check").addClass("fa-copy");
+      }, 1200);
+    });
+    return v2_1;
+  }
+  icons(v2_0, v2_1) {
+    var v2_2 = this;
+    var v2_3 = [];
+    $.each(v2_0.items || [], function (v3_0, v3_1) {
+      if (v2_2.ask(v3_1.visible, v3_1.key, v2_1, true) !== false) {
+        v2_3.push(v3_1);
+      }
+    });
+    if (v2_3.length === 0) {
+      return null;
+    }
+    var v2_4 = $("<div></div>")
+      .addClass("cm-icons")
+      .css("grid-template-columns", "repeat(" + v2_3.length + ", minmax(0, 1fr))");
+    $.each(v2_3, function (v3_0, v3_1) {
+      var v3_2 = v2_2.label(v3_1.name, v3_1.key, v2_1);
+      var v3_3 = $("<button></button>")
+        .attr({
+          type: "button",
+          tabindex: "-1",
+          title: v3_2,
+          "aria-label": v3_2,
+        })
+        .addClass("cm-icon-btn")
+        .append(new Icon(v3_1.icon).html());
+      if (v3_1.on) {
+        v3_3.addClass("is-on").attr("aria-pressed", "true");
+      }
+      v2_2.stop(v3_3, v3_1.key);
+      v2_4.append(v3_3);
+    });
+    return $("<li></li>").addClass("context-menu-tray context-menu-not-selectable").append(v2_4);
+  }
+  toggle(v2_0, v2_1, v2_2) {
+    var v2_3 = this.ask(v2_1.disabled, v2_0, v2_2, false) === true;
+    var v2_4 = v2_1.on ? true : false;
+    var v2_5 = $("<button></button>")
+      .attr({
+        type: "button",
+        tabindex: "-1",
+        role: "switch",
+        "aria-checked": v2_4 ? "true" : "false",
+      })
+      .addClass("cm-row-btn");
+    if (v2_1.icon) {
+      v2_5.append(new Icon(v2_1.icon).html());
+    }
+    v2_5.append(
+      $("<span></span>")
+        .addClass("cm-row-label")
+        .text(this.label(v2_1.name, v2_0, v2_2)),
+    );
+    if (v2_1.meta) {
+      v2_5.append($("<span></span>").addClass("cm-row-meta").text(v2_1.meta));
+    }
+    var v2_6 = $("<span></span>").addClass("cm-switch-host");
+    v2_5.append(v2_6);
+    var v2_7 = new Switch(
+      v2_6,
+      function (v3_0) {
+        return new Icon(v3_0 ? "fa-check" : "fa-xmark").html();
+      },
+      "cmSwitch" + ++this.counter,
+    );
+    this.deferred.push(function () {
+      v2_7.setValue(v2_4, true);
+    });
+    if (v2_3) {
+      v2_5.prop("disabled", true).addClass("context-menu-disabled");
+      v2_7.setReadOnly(true);
+    } else {
+      this.stop(v2_5, v2_0);
+    }
+    return $("<li></li>").addClass("context-menu-row").append(v2_5);
+  }
+  stepper(v2_0, v2_1, v2_2) {
+    var v2_3 = this.ask(v2_1.disabled, v2_0, v2_2, false) === true;
+    var v2_4 = $("<span></span>").addClass("cm-row-static");
+    if (v2_1.icon) {
+      v2_4.append(new Icon(v2_1.icon).html());
+    }
+    v2_4.append(
+      $("<span></span>")
+        .addClass("cm-row-label")
+        .text(this.label(v2_1.name, v2_0, v2_2)),
+    );
+    if (v2_1.value) {
+      v2_4.append($("<span></span>").addClass("cm-row-meta").text(v2_1.value));
+    }
+    var v2_5 = $("<span></span>").addClass("cm-steps");
+    var v2_6 = this;
+    $.each(
+      [
+        {
+          key: v2_1.down,
+          label: v2_1.downLabel || "Down",
+          icon: v2_1.downIcon,
+        },
+        {
+          key: v2_1.up,
+          label: v2_1.upLabel || "Up",
+          icon: v2_1.upIcon,
+        },
+      ],
+      function (v3_0, v3_1) {
+        if (!v3_1.key) {
+          return;
+        }
+        var v3_2 = $("<button></button>")
+          .attr({
+            type: "button",
+            tabindex: "-1",
+            title: v3_1.label,
+            "aria-label": v3_1.label,
+          })
+          .addClass("cm-step-btn")
+          .append(new Icon(v3_1.icon).html());
+        if (v2_3) {
+          v3_2.prop("disabled", true).addClass("context-menu-disabled");
+        } else {
+          v2_6.stop(v3_2, v3_1.key);
+        }
+        v2_5.append(v3_2);
+      },
+    );
+    var v2_7 = $("<li></li>").addClass("context-menu-row").append(v2_4).append(v2_5);
+    if (v2_3) {
+      v2_7.addClass("context-menu-disabled");
+    }
+    return v2_7;
+  }
+  stop(v2_0, v2_1) {
+    v2_0.addClass("context-menu-activatable").data("contextMenuKey", v2_1);
+    this.items.push(v2_0);
+    return v2_0;
+  }
+  surface() {
+    if (this.container && this.container.length) {
+      return this.container;
+    } else {
+      return $("body");
+    }
+  }
+  iconClass(v2_0) {
+    if (typeof v2_0 == "string" && v2_0.substring(0, 3) == "fa-") {
+      return "context-menu-icon context-menu-icon--fa fa " + v2_0;
+    }
+    return "context-menu-icon context-menu-icon-" + v2_0;
+  }
+  label(v2_0, v2_1, v2_2) {
+    if ($.isFunction(v2_0)) {
+      return String(v2_0.call(this, v2_1, v2_2));
+    }
+    if (v2_0 === undefined || v2_0 === null) {
+      return "";
+    } else {
+      return String(v2_0);
+    }
+  }
+  ask(v2_0, v2_1, v2_2, v2_3) {
+    if ($.isFunction(v2_0)) {
+      if (v2_0.call(this, v2_1, v2_2)) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+    if (v2_0 === true || v2_0 === false) {
+      return v2_0;
+    }
+    return v2_3;
+  }
+  place(v2_0, v2_1) {
+    this.menu.css({
+      left: v2_0 + "px",
+      top: v2_1 + "px",
+    });
+    var v2_2 = this.menu.outerWidth();
+    var v2_3 = this.menu.outerHeight();
+    var v2_4 = $(window).scrollLeft();
+    var v2_5 = $(window).scrollTop();
+    var v2_6 = v2_4 + $(window).width();
+    var v2_7 = v2_5 + $(window).height();
+    if (v2_0 + v2_2 > v2_6) {
+      v2_0 = Math.max(v2_4, v2_0 - v2_2);
+    }
+    if (v2_1 + v2_3 > v2_7) {
+      v2_1 = Math.max(v2_5, v2_1 - v2_3);
+    }
+    this.menu.css({
+      left: v2_0 + "px",
+      top: v2_1 + "px",
+    });
+  }
+  activate(v2_0) {
+    if (!this.current) {
+      return;
+    }
+    var v2_1 = this.current.options;
+    this.hide();
+    if ($.isFunction(v2_1.callback)) {
+      v2_1.callback(v2_0, v2_1);
+    }
+  }
+  hide() {
+    if (!this.menu) {
+      return;
+    }
+    var v2_0 = this.current ? this.current.returnFocusTo : null;
+    var v2_1 = this.menu[0].contains(document.activeElement);
+    this.menu.remove();
+    this.menu = null;
+    this.current = null;
+    this.items = [];
+    this.hover = -1;
+    if (v2_1 && v2_0 && $.isFunction(v2_0.focus)) {
+      v2_0.focus();
+    }
+    $(this).triggerHandler("contextMenuHidden");
+  }
+  isOpen() {
+    return this.menu !== null;
+  }
+  bindDismissal() {
+    var v2_0 = this;
+    $(document).on(UI.pointerEvent("down", "fmContextMenu"), function (v3_0) {
+      if (!v2_0.isOpen()) {
+        return;
+      }
+      if (v2_0.menu[0] === v3_0.target || $.contains(v2_0.menu[0], v3_0.target)) {
+        return;
+      }
+      if (Date.now() - v2_0.openedAt < 50) {
+        return;
+      }
+      v2_0.hide();
+    });
+    $(document).on("keydown.fmContextMenu", function (v3_0) {
+      v2_0.key(v3_0);
+    });
+    $(window).on("resize.fmContextMenu scroll.fmContextMenu blur.fmContextMenu", function () {
+      v2_0.hide();
+    });
+  }
+  key(v2_0) {
+    if (!this.isOpen()) {
+      return;
+    }
+    if (v2_0.key == "Escape" || v2_0.key == "Esc") {
+      v2_0.preventDefault();
+      this.hide();
+    } else if (v2_0.key == "ArrowDown" || v2_0.key == "Down") {
+      v2_0.preventDefault();
+      this.moveHover(1);
+    } else if (v2_0.key == "ArrowUp" || v2_0.key == "Up") {
+      v2_0.preventDefault();
+      this.moveHover(-1);
+    } else if (v2_0.key == "Home") {
+      v2_0.preventDefault();
+      this.setHover(0);
+    } else if (v2_0.key == "End") {
+      v2_0.preventDefault();
+      this.setHover(this.items.length - 1);
+    } else if (v2_0.key == "Enter" || v2_0.key == " ") {
+      if (this.hover >= 0 && this.hover < this.items.length) {
+        v2_0.preventDefault();
+        this.activate(this.items[this.hover].data("contextMenuKey"));
+      }
+    } else if (v2_0.key == "Tab") {
+      v2_0.preventDefault();
+    }
+  }
+  moveHover(v2_0) {
+    if (this.items.length === 0) {
+      return;
+    }
+    var v2_1 = this.hover + v2_0;
+    if (v2_1 < 0) {
+      v2_1 = this.items.length - 1;
+    } else if (v2_1 >= this.items.length) {
+      v2_1 = 0;
+    }
+    this.setHover(v2_1);
+  }
+  setHover(v2_0) {
+    if (v2_0 < 0 || v2_0 >= this.items.length) {
+      return;
+    }
+    if (this.hover >= 0 && this.hover < this.items.length) {
+      this.items[this.hover].removeClass("context-menu-hover");
+    }
+    this.hover = v2_0;
+    this.items[v2_0].addClass("context-menu-hover").focus();
+  }
+  indexOfItem(v2_0) {
+    for (var v2_1 = 0; v2_1 < this.items.length; v2_1++) {
+      if (this.items[v2_1][0] === v2_0[0]) {
+        return v2_1;
+      }
+    }
+    return -1;
+  }
+}
 class Slider extends UIComponent {
   constructor(v2_0, v2_1 = 10, v2_2 = 20, v2_3 = 1, v2_4 = null, v2_5 = "slider") {
     super(v2_0);
@@ -11232,6 +11775,159 @@ class Pagination extends UIComponent {
     }
   }
 }
+class ReorderableImageGrid extends UIComponent {
+  constructor(v2_0) {
+    super(v2_0);
+    this.imageHeight = 120;
+    this.editable = false;
+    this.drag = null;
+    this.container.addClass("imageShowcase");
+    this.strip = $('<div class="imageShowcaseStrip"></div>');
+    this.container.html(this.strip);
+    var v2_1 = this;
+    this.strip.on("pointerdown", ".galleryImageContainer", function (v3_0) {
+      v2_1.onPointerDown(v3_0.originalEvent || v3_0, $(this));
+    });
+    this._onMove = function (v3_0) {
+      v2_1.onPointerMove(v3_0.originalEvent || v3_0);
+    };
+    this._onUp = function (v3_0) {
+      v2_1.onPointerUp(v3_0.originalEvent || v3_0);
+    };
+  }
+  setImages(v2_0, v2_1) {
+    this.editable = !!v2_1;
+    this.container.toggleClass("editable", this.editable);
+    this.strip.empty();
+    if (!v2_0 || v2_0.length === 0) {
+      this.strip.append(
+        '<div class="noImages">' + textManager.getString("usergallery.lblNoImages") + "</div>",
+      );
+      return;
+    }
+    var v2_2 = this;
+    $(v2_0).each(function (v3_0, v3_1) {
+      v2_2.strip.append(v2_2.buildTile(v3_1));
+    });
+  }
+  buildTile(v2_0) {
+    var v2_1 = new Image();
+    v2_1.src = v2_0.thumb;
+    var v2_2 = Math.round((v2_0.width * this.imageHeight) / v2_0.height);
+    $(v2_1).css({
+      width: v2_2 + "px",
+    });
+    $(v2_1).attr("height", this.imageHeight);
+    v2_1.draggable = false;
+    var v2_3 = $('<div class="galleryImageContainer"></div>');
+    v2_3.attr("data-id", v2_0.id);
+    if (v2_0.isAdult && UI.userPreferences.getGroupOption("graphics", "bluradultgallery", true)) {
+      v2_3.addClass("adultContent");
+      v2_3.append(
+        '<div class="galleryImageAdultBadge">' +
+          textManager.getString("global.lblAdultsOnly") +
+          "</div>",
+      );
+    }
+    v2_3.append(v2_1);
+    var v2_4 = $('<div class="galleryImageOverlay"></div>');
+    if (v2_0.score > 0) {
+      v2_4.append(
+        '<span class="overlayItem"><i class="fas fa-thumbs-up"></i> ' + v2_0.score + "</span>",
+      );
+    }
+    if (v2_0.numComments > 0) {
+      v2_4.append(
+        '<span class="overlayItem"><i class="fas fa-comments"></i> ' + v2_0.numComments + "</span>",
+      );
+    }
+    if (v2_4.children().length > 0) {
+      v2_3.append(v2_4);
+    }
+    return v2_3;
+  }
+  getOrder() {
+    return this.strip
+      .children(".galleryImageContainer")
+      .map(function () {
+        return parseInt($(this).attr("data-id"), 10);
+      })
+      .get();
+  }
+  onPointerDown(v2_0, v2_1) {
+    if (typeof v2_0.button === "number" && v2_0.button !== 0) {
+      return;
+    }
+    this.drag = {
+      tile: v2_1,
+      id: v2_1.attr("data-id"),
+      startX: v2_0.clientX,
+      startY: v2_0.clientY,
+      moved: false,
+    };
+    $(document).on("pointermove", this._onMove);
+    $(document).on("pointerup pointercancel", this._onUp);
+  }
+  onPointerMove(v2_0) {
+    if (!this.drag) {
+      return;
+    }
+    if (!this.drag.moved) {
+      if (!this.editable) {
+        return;
+      }
+      var v2_1 = v2_0.clientX - this.drag.startX;
+      var v2_2 = v2_0.clientY - this.drag.startY;
+      if (Math.abs(v2_1) < 6 && Math.abs(v2_2) < 6) {
+        return;
+      }
+      this.drag.moved = true;
+      this.drag.tile.addClass("dragging");
+    }
+    if (v2_0.cancelable) {
+      v2_0.preventDefault();
+    }
+    var v2_3 = this.tileAt(v2_0.clientX);
+    if (v2_3 && v2_3[0] !== this.drag.tile[0]) {
+      var v2_4 = v2_3[0].getBoundingClientRect();
+      if (v2_0.clientX < v2_4.left + v2_4.width / 2) {
+        this.drag.tile.insertBefore(v2_3);
+      } else {
+        this.drag.tile.insertAfter(v2_3);
+      }
+    }
+  }
+  tileAt(v2_0) {
+    var v2_1 = this;
+    var v2_2 = null;
+    this.strip.children(".galleryImageContainer").each(function () {
+      if (this === v2_1.drag.tile[0]) {
+        return;
+      }
+      var v3_0 = this.getBoundingClientRect();
+      if (v2_0 >= v3_0.left && v2_0 <= v3_0.right) {
+        v2_2 = $(this);
+        return false;
+      }
+    });
+    return v2_2;
+  }
+  onPointerUp(v2_0) {
+    $(document).off("pointermove", this._onMove);
+    $(document).off("pointerup pointercancel", this._onUp);
+    if (!this.drag) {
+      return;
+    }
+    var v2_1 = this.drag;
+    this.drag = null;
+    if (v2_1.moved) {
+      v2_1.tile.removeClass("dragging");
+      $(this).triggerHandler(new showcaseReorderedEvent(this.getOrder()).getEvent());
+    } else {
+      $(this).triggerHandler(new imageSelectedEvent(v2_1.id).getEvent());
+    }
+  }
+}
 class Table extends UIComponent {
   constructor(v2_0, v2_1 = null, v2_2 = null, v2_3 = null) {
     super(v2_0);
@@ -11269,6 +11965,7 @@ class Table extends UIComponent {
     this.rowCount = 0;
     this.rowsPerPage = 50;
     this.rowIndex = new Map();
+    this.updating = false;
     this.emptyRowVisible = false;
     this.headerFields = {};
     this.container.append(this.filter);
@@ -11665,6 +12362,9 @@ class Table extends UIComponent {
     }, 100);
   }
   updated() {
+    if (this.updating) {
+      return;
+    }
     if (this.updatedTimeout != null) {
       clearTimeout(this.updatedTimeout);
     }
@@ -11675,41 +12375,14 @@ class Table extends UIComponent {
     }, 50);
   }
   _doUpdate() {
-    var v2_0 = this;
-    var v2_1 = 0;
-    this.body
-      .find("tbody tr.regularRow:first td.hasMinWidth")
-      .removeClass("hasMinWidth")
-      .css("min-width", "unset");
-    this.header
-      .find("div.headerTable div.headerRow:first div.headerCell")
-      .each(function (v3_0, v3_1) {
-        var v3_2 = v2_0.calculateTextWidth($(v3_1).find(".headerCaption").text());
-        var v3_3 = v2_0.body.find("tbody tr.regularRow:first td:nth-child(" + (v3_0 + 1) + ")");
-        if (v3_3.is(":visible")) {
-          v3_3.addClass("hasMinWidth").css("min-width", v3_2);
-        }
-      });
-    this.header
-      .find("div.headerTable div.headerRow:first div.headerCell")
-      .each(function (v3_0, v3_1) {
-        var v3_2 = v2_0.body.find("tbody tr.regularRow:first td:nth-child(" + (v3_0 + 1) + ")");
-        var v3_3 = v3_2.width();
-        var v3_4 = v3_2.outerWidth();
-        $(v3_1).width(v3_3);
-        v2_1 += v3_4;
-      });
-    this.header.find("div.headerTable div.headerRow").width(v2_1);
-    var v2_2 = Math.ceil(this.rowCount / this.rowsPerPage);
-    var v2_3 = this.header.outerHeight();
-    var v2_4 = v2_2 == 1 ? 0 : this.paginationContainer.outerHeight() || 35.6;
-    var v2_5 = this.filterable ? this.filter.outerHeight() : 0;
-    this.pagination.update(v2_2);
-    this.body.css("height", "calc(100% - " + (v2_3 + v2_4 + v2_5) + "px)");
-    if (this.scroll) {
-      try {
-        this.scroll.update();
-      } catch (v4_0) {}
+    if (this.updating) {
+      return;
+    }
+    this.updating = true;
+    try {
+      this._measure();
+    } finally {
+      this.updating = false;
     }
   }
   getColumnId(v2_0) {
@@ -11926,14 +12599,22 @@ class Table extends UIComponent {
     } else {
       v2_0 = parseInt(v2_0);
     }
-    if (v2_0 >= 1 && v2_0 <= this.pagination.pages) {
+    this.updatePagination(v2_1);
+    var v2_2 = Math.max(this.pagination.pages, 1);
+    if (v2_0 < 1) {
+      v2_0 = 1;
+    }
+    if (v2_0 > v2_2) {
+      v2_0 = v2_2;
+    }
+    {
       this.body.find("tbody tr.regularRow").remove();
-      var v2_2 = this;
-      var v2_3 = this.rowsPerPage * (v2_0 - 1);
-      var v2_4 = v2_3 + this.rowsPerPage;
-      let v3_0 = this.getSortedRows(this.getFilteredRows(v2_1)).slice(v2_3, v2_4);
+      var v2_3 = this;
+      var v2_4 = this.rowsPerPage * (v2_0 - 1);
+      var v2_5 = v2_4 + this.rowsPerPage;
+      let v3_0 = this.getSortedRows(this.getFilteredRows(v2_1)).slice(v2_4, v2_5);
       v3_0.forEach(function (v4_0, v4_1) {
-        v2_2.printRow(v2_3 + v4_1, v4_0);
+        v2_3.printRow(v2_4 + v4_1, v4_0);
       });
       if (v3_0.length == 0) {
         this.printEmpty();
@@ -11951,13 +12632,12 @@ class Table extends UIComponent {
         this.body.scrollTop(0);
       }
       this.page = v2_0;
-      this.updatePagination(v2_1);
       this.pagination.setPage(v2_0);
       this.updated();
       setTimeout(function () {
         try {
-          if (v2_2.scroll) {
-            v2_2.scroll.update();
+          if (v2_3.scroll) {
+            v2_3.scroll.update();
           }
         } catch (v5_0) {}
       }, 60);
@@ -12011,6 +12691,44 @@ class Table extends UIComponent {
     UI.setFocusElement(this);
     if (this.filterable) {
       this.filter.find('input[name="filter"]').focus();
+    }
+  }
+  _measure() {
+    var v2_0 = this;
+    var v2_1 = 0;
+    this.body
+      .find("tbody tr.regularRow:first td.hasMinWidth")
+      .removeClass("hasMinWidth")
+      .css("min-width", "unset");
+    this.header
+      .find("div.headerTable div.headerRow:first div.headerCell")
+      .each(function (v3_0, v3_1) {
+        var v3_2 = v2_0.calculateTextWidth($(v3_1).find(".headerCaption").text());
+        var v3_3 = v2_0.body.find("tbody tr.regularRow:first td:nth-child(" + (v3_0 + 1) + ")");
+        if (v3_3.is(":visible")) {
+          v3_3.addClass("hasMinWidth").css("min-width", v3_2);
+        }
+      });
+    this.header
+      .find("div.headerTable div.headerRow:first div.headerCell")
+      .each(function (v3_0, v3_1) {
+        var v3_2 = v2_0.body.find("tbody tr.regularRow:first td:nth-child(" + (v3_0 + 1) + ")");
+        var v3_3 = v3_2.width();
+        var v3_4 = v3_2.outerWidth();
+        $(v3_1).width(v3_3);
+        v2_1 += v3_4;
+      });
+    this.header.find("div.headerTable div.headerRow").width(v2_1);
+    var v2_2 = Math.ceil(this.rowCount / this.rowsPerPage);
+    var v2_3 = this.header.outerHeight();
+    var v2_4 = v2_2 == 1 ? 0 : this.paginationContainer.outerHeight() || 35.6;
+    var v2_5 = this.filterable ? this.filter.outerHeight() : 0;
+    this.pagination.update(v2_2);
+    this.body.css("height", "calc(100% - " + (v2_3 + v2_4 + v2_5) + "px)");
+    if (this.scroll) {
+      try {
+        this.scroll.update();
+      } catch (v4_0) {}
     }
   }
 }
@@ -12642,6 +13360,9 @@ class ShortcutManager extends Component {
       new ShortcutObject("pixelsmoothing", "custom", "", "", "UI", "keydown", 0, false),
     );
     this.shortcuts.push(
+      new ShortcutObject("backgroundoverride", "custom", "", "", "UI", "keydown", 0, false),
+    );
+    this.shortcuts.push(
       new ShortcutObject("pickcolor1", "color", "NUMPAD 1", "", "UI", "keydown", 0, false),
     );
     this.shortcuts.push(
@@ -13156,7 +13877,7 @@ class LayerPreview extends UIComponent {
     this.previewTimers = [];
     this.create();
     var v2_1 = this;
-    $.contextMenu({
+    UI.contextMenu.register({
       selector: ".layerPreview",
       build: function (v3_0) {
         var v3_1 = {
@@ -13622,15 +14343,18 @@ class UserList extends UIComponent {
   constructor(v2_0) {
     super(v2_0);
     var v2_1 = this;
-    $.contextMenu({
+    UI.contextMenu.register({
       selector: "#userlistBox table tbody tr.myself",
       build: function (v3_0) {
         var v3_1 = {
           callback: function (v4_0, v4_1) {
             var v4_2 = v4_1.$trigger.attr("name");
             v2_1.select(v4_2);
-            if (v4_0 == "Pfl") {
-              UI.profileDialog.show();
+            if (v4_0 == "EdP") {
+              UI.editProfileDialog.show();
+            } else if (v4_0 == "Pfl") {
+              UI.userProfileDialog.loadProfile(room.myself.uid, room.myself.username);
+              UI.userProfileDialog.show();
             } else if (v4_0 == "Ugd") {
               UI.userGalleryDialog.loadGallery("UID", room.myself.uid);
               UI.userGalleryDialog.show();
@@ -13650,12 +14374,11 @@ class UserList extends UIComponent {
             }
           },
           items: {
-            Dbg: {
-              name: "Debug",
-              visible: function (v4_0, v4_1) {
-                return room.myself.rank == "GM";
-              },
-              icon: "fa-bug",
+            EdP: {
+              icon: "fa-pen-to-square",
+            },
+            sepYou: {
+              type: "cm_separator",
             },
             Pfl: {
               name: "Profile",
@@ -13667,6 +14390,19 @@ class UserList extends UIComponent {
                 return room.myself.isLogged();
               },
               icon: "fa-images",
+            },
+            sepRoom: {
+              type: "cm_separator",
+              visible: function (v4_0, v4_1) {
+                return room.myself.isLogged() || room.myself.rank == "GM";
+              },
+            },
+            Dbg: {
+              name: "Debug",
+              visible: function (v4_0, v4_1) {
+                return room.myself.rank == "GM";
+              },
+              icon: "fa-bug",
             },
             Reg: {
               name: "Register room",
@@ -13682,13 +14418,23 @@ class UserList extends UIComponent {
             return textManager.getString("menu.userList." + v4_0, null, false);
           };
         });
+        v3_1.items.EdP.name = function () {
+          return textManager.getString("editprofile.mnuChange", null, false);
+        };
         return v3_1;
       },
     });
-    $.contextMenu({
+    UI.contextMenu.register({
       selector: "#userlistBox table tbody tr.someoneelse",
       build: function (v3_0) {
-        var v3_1 = {
+        var v3_1 = room.users[v3_0.attr("name")];
+        if (!v3_1) {
+          return false;
+        }
+        function v3_2(v4_0) {
+          return textManager.getString("menu.userList." + v4_0, null, false);
+        }
+        var v3_3 = {
           callback: function (v4_0, v4_1) {
             var v4_2 = v4_1.$trigger.attr("name");
             v2_1.select(v4_2);
@@ -13696,6 +14442,9 @@ class UserList extends UIComponent {
               UI.syncBoard(v4_2);
             } else if (v4_0 == "SncDlg") {
               UI.syncDialog.show(v4_2);
+            } else if (v4_0 == "Prf") {
+              UI.userProfileDialog.loadProfile(room.users[v4_2].uid, room.users[v4_2].username);
+              UI.userProfileDialog.show();
             } else if (v4_0 == "Ugd") {
               UI.userGalleryDialog.loadGallery("UID", room.users[v4_2].uid);
               UI.userGalleryDialog.show();
@@ -13725,178 +14474,146 @@ class UserList extends UIComponent {
             }
           },
           items: {
-            Nm: {
-              name: "-",
-              disabled: true,
+            Head: {
+              type: "cm_header",
+              color: v3_1.surface ? v3_1.surface.drawColor : null,
+              nameClass: UI.rankToStyle(v3_1.rank),
+              meta: UI.userRank(v3_1.rank, false),
+              metaClass: UI.rankToStyle(v3_1.rank),
+              status: v3_1.status,
+              ip: room.can("ban") && v3_1.hasIP() ? v3_1.ip : null,
+              proxy: v3_1.proxy,
             },
-            Rnk: {
-              name: "-",
-              disabled: true,
-            },
-            Ipa: {
-              name: "-",
-              disabled: true,
-              visible: function (v4_0, v4_1) {
-                return room.can("ban");
-              },
-              icon: "fa-ellipsis",
-            },
-            sep0: {
-              type: "cm_separator",
+            Quick: {
+              type: "cm_icons",
+              items: [
+                {
+                  key: "Prf",
+                  icon: "fa-id-card",
+                  name: v3_2("Prf"),
+                  visible: v3_1.isLogged(),
+                },
+                {
+                  key: "Pm",
+                  icon: "fa-envelope",
+                  name: v3_2("Pm"),
+                },
+                {
+                  key: "Frq",
+                  icon: "fa-user-plus",
+                  name: v3_2("Frq"),
+                  visible: room.myself.rank != "UU" && v3_1.isLogged(),
+                },
+                {
+                  key: "Rep",
+                  icon: "fa-flag",
+                  name: v3_2("Rep"),
+                },
+              ],
             },
             Snc: {
               name: "Sync board",
               icon: "fa-arrow-left",
             },
-            SncDlg: {
-              name: "Sync options",
-              icon: "fa-sync",
-            },
-            Dbg: {
-              name: "Debug",
-              visible: function (v4_0, v4_1) {
-                return room.myself.rank == "GM";
-              },
-              icon: "fa-bug",
-            },
-            Ugd: {
-              name: "Gallery",
-              visible: function (v4_0, v4_1) {
-                return room.users[v4_1.$trigger.attr("name")].isLogged();
-              },
-              icon: "fa-images",
-            },
-            Ccb: {
-              name: "Copy custom brush",
-              visible: function (v4_0, v4_1) {
-                return room.myself.rank == "GM";
-              },
-              icon: "fa-copy",
-            },
-            Pm: {
-              name: "Private message",
-              icon: "fa-envelope",
-            },
-            Frq: {
-              name: "Send friend request",
-              visible: function (v4_0, v4_1) {
-                return (
-                  room.myself.rank != "UU" && room.users[v4_1.$trigger.attr("name")].isLogged()
-                );
-              },
-              icon: "fa-user-plus",
-            },
-            sep1: {
-              type: "cm_separator",
-            },
             IgnToggle: {
-              name: "Ignore / Unignore",
+              type: "cm_switch",
+              name: "Ignore",
               icon: "fa-user-slash",
+              on: v3_1.ignored,
             },
-            Rep: {
-              name: "Report",
-              icon: "fa-flag",
-            },
-            sep2: {
+            sepMod: {
               type: "cm_separator",
-              visible: function (v4_0, v4_1) {
-                return room.can("kick") || room.can("ban");
-              },
+              visible: room.can("mute") || room.can("silence") || room.can("addmod"),
+            },
+            Mute: {
+              type: "cm_switch",
+              name: "Mute",
+              icon: "fa-ban",
+              on: false,
+              visible: room.can("mute") && !v3_1.muted,
+            },
+            Unmute: {
+              type: "cm_switch",
+              icon: "fa-ban",
+              on: true,
+              visible: room.can("mute") && v3_1.muted,
+            },
+            Silence: {
+              type: "cm_switch",
+              name: "Silence",
+              icon: "fa-comment-slash",
+              on: false,
+              visible: room.can("silence") && !v3_1.silenced,
+            },
+            Unsilence: {
+              type: "cm_switch",
+              icon: "fa-comment-slash",
+              on: true,
+              visible: room.can("silence") && v3_1.silenced,
+            },
+            Rank: {
+              type: "cm_stepper",
+              icon: "fa-shield-halved",
+              up: "Promote",
+              down: "Demote",
+              upLabel: v3_2("Promote"),
+              downLabel: v3_2("Demote"),
+              upIcon: "fa-person-arrow-up-from-line",
+              downIcon: "fa-person-arrow-down-to-line",
+              visible: room.can("addmod"),
+              disabled: v3_1.rank == "UU",
+            },
+            sepDanger: {
+              type: "cm_separator",
+              visible: room.can("kick") || room.can("ban"),
             },
             Kick: {
               name: "Kick",
-              visible: function (v4_0, v4_1) {
-                return room.can("kick");
-              },
               icon: "fa-user-minus",
+              danger: true,
+              visible: room.can("kick"),
             },
             Ban: {
               name: "Ban",
-              visible: function (v4_0, v4_1) {
-                return room.can("ban");
-              },
               icon: "fa-user-xmark",
+              danger: true,
+              visible: room.can("ban"),
             },
-            sep3: {
+            sepDev: {
               type: "cm_separator",
-              visible: function (v4_0, v4_1) {
-                return room.can("mute");
-              },
+              visible: room.myself.rank == "GM",
             },
-            Mute: {
-              name: "Mute",
-              visible: function (v4_0, v4_1) {
-                return room.can("mute");
-              },
-              icon: "fa-ban",
+            Dbg: {
+              name: "Debug",
+              icon: "fa-bug",
+              visible: room.myself.rank == "GM",
             },
-            Unmute: {
-              name: "Unmute",
-              visible: function (v4_0, v4_1) {
-                return room.can("mute");
-              },
-              icon: "fa-pencil",
+            Ccb: {
+              name: "Copy custom brush",
+              icon: "fa-copy",
+              visible: room.myself.rank == "GM",
             },
-            sep4: {
-              type: "cm_separator",
-              visible: function (v4_0, v4_1) {
-                return room.can("silence");
-              },
-            },
-            Silence: {
-              name: "Silence",
-              visible: function (v4_0, v4_1) {
-                return room.can("silence");
-              },
-              icon: "fa-comment-slash",
-            },
-            Unsilence: {
-              name: "Unsilence",
-              visible: function (v4_0, v4_1) {
-                return room.can("silence");
-              },
-              icon: "fa-comment",
-            },
-            sep5: {
-              type: "cm_separator",
-              visible: function (v4_0, v4_1) {
-                return room.can("addmod");
-              },
-            },
-            Promote: {
-              name: "Promote",
-              visible: function (v4_0, v4_1) {
-                return room.can("addmod");
-              },
-              disabled: function (v4_0, v4_1) {
-                var v4_2 = v4_1.$trigger.attr("name");
-                return room.users[v4_2].rank == "UU";
-              },
-              icon: "fa-person-arrow-up-from-line",
-            },
-            Demote: {
-              name: "Demote",
-              visible: function (v4_0, v4_1) {
-                return room.can("addmod");
-              },
-              disabled: function (v4_0, v4_1) {
-                var v4_2 = v4_1.$trigger.attr("name");
-                return room.users[v4_2].rank == "UU";
-              },
-              icon: "fa-person-arrow-down-to-line",
+            SncDlg: {
+              name: "Sync options",
+              icon: "fa-sync",
+              visible: room.myself.rank == "GM",
             },
           },
         };
-        $.each(v3_1.items, function (v4_0, v4_1) {
-          v3_1.items[v4_0].name &&= function () {
+        $.each(v3_3.items, function (v4_0, v4_1) {
+          v3_3.items[v4_0].name &&= function () {
             return textManager.getString("menu.userList." + v4_0, null, false);
           };
         });
-        v3_1.items.Nm.name = v3_0.attr("name");
-        v3_1.items.Rnk.name = UI.userRank(room.users[v3_0.attr("name")].rank, null, false);
-        v3_1.items.Ipa.name = room.users[v3_0.attr("name")].ip;
-        v3_1.items.Ipa.icon = room.users[v3_0.attr("name")].proxy ? "fa-network-wired" : "";
-        return v3_1;
+        v3_3.items.Head.name = v3_1.username;
+        v3_3.items.Rank.name = UI.userRank(v3_1.rank, false);
+        v3_3.items.Unmute.name = function () {
+          return textManager.getString("menu.userList.Mute", null, false);
+        };
+        v3_3.items.Unsilence.name = function () {
+          return textManager.getString("menu.userList.Silence", null, false);
+        };
+        return v3_3;
       },
     });
     $(this.container).on(UI.pointerEvent("click"), "tr", function (v3_0) {
@@ -13909,10 +14626,11 @@ class UserList extends UIComponent {
       v2_3 = false;
       v2_2 = setTimeout(function () {
         v2_3 = true;
-        v3_1.contextMenu({
-          x: v3_0.originalEvent.touches[0].pageX,
-          y: v3_0.originalEvent.touches[0].pageY,
-        });
+        UI.contextMenu.open(
+          v3_1,
+          v3_0.originalEvent.touches[0].pageX,
+          v3_0.originalEvent.touches[0].pageY,
+        );
       }, 500);
     });
     $(this.container).on("touchend touchmove", "tr", function (v3_0) {
@@ -21370,6 +22088,8 @@ class DialogHandler {
       v2_2 = new DebugDialog(this.container, v2_0);
     } else if (v2_0 == "profile") {
       v2_2 = new ProfileDialog(this.container, v2_0);
+    } else if (v2_0 == "editprofile") {
+      v2_2 = new EditProfileDialog(this.container, v2_0);
     } else if (v2_0 == "color") {
       v2_2 = new ColorDialog(this.container, v2_0);
     } else if (v2_0 == "help") {
@@ -21392,6 +22112,8 @@ class DialogHandler {
       v2_2 = new GalleryImageDialog(this.container, v2_0);
     } else if (v2_0 == "usergallery") {
       v2_2 = new UserGalleryDialog(this.container, v2_0);
+    } else if (v2_0 == "userprofile") {
+      v2_2 = new UserProfileDialog(this.container, v2_0);
     } else if (v2_0 == "imageviewer") {
       v2_2 = new v0_10(this.container, v2_0);
     } else if (v2_0 == "sync") {
@@ -22288,6 +23010,7 @@ class Dialog {
       this.title.find('select[name="languagebutton"]').val(textManager.getLocale());
       this.title.find('select[name="languagebutton"]').toggle(this.languageSelector);
       this.onShow.apply(this, arguments);
+      this.refreshScrollbars();
       if (this.checkSizeRequirements()) {
         if (this.outOfBounds()) {
           this.resizeToFit();
@@ -22419,6 +23142,21 @@ class Dialog {
   onShow() {}
   onHide() {}
   onResize() {}
+  refreshScrollbars() {
+    var v2_0 = this.form;
+    function v2_1() {
+      v2_0.find(".os-host").each(function () {
+        try {
+          var v4_0 = $(this).overlayScrollbars();
+          if (v4_0) {
+            v4_0.update(true);
+          }
+        } catch (v5_0) {}
+      });
+    }
+    v2_1();
+    setTimeout(v2_1, 250);
+  }
 }
 class SubDialog {
   constructor(v2_0, v2_1 = null) {
@@ -22574,6 +23312,16 @@ class ConfigDialog extends Dialog {
           v5_6.setValue(UI.userPreferences.getGroupOption(v5_4, v5_2, v5_5));
           v2_1.elementCB.push(v5_6);
         });
+        this.backgroundColorSelector = new ColorSelector(
+          this.content.find('div[name="backgroundcolor"]'),
+          UI.userPreferences.getProperty("backgroundcolor", "#FFFFFF"),
+        );
+        this.content
+          .find('div[name="backgroundcolor"]')
+          .on(UI.pointerEvent("click"), function (v5_0) {
+            v5_0.preventDefault();
+            UI.colorDialog.show(v2_1.backgroundColorSelector.current);
+          });
         this.content.find("#uploadConfig").on("change", function (v5_0) {
           var v5_1 = v5_0.target.files;
           var v5_2 = v5_1[0];
@@ -22691,6 +23439,8 @@ class ConfigDialog extends Dialog {
       this.content.find('select[name="strokequality"]').val(),
     );
     UI.userPreferences.setProperty("soundvolume", this.volumeSlider.value);
+    UI.userPreferences.setProperty("backgroundcolor", this.backgroundColorSelector.current);
+    UI.applyBackgroundOverride();
     var v2_4 = this.sidebarSelector.getSelected();
     UI.moveSidebar(v2_4);
     UI.userPreferences.setProperty("toolbarside", v2_4);
@@ -23614,7 +24364,7 @@ class ChatDialog extends Dialog {
       v2_2.acceptTag(v3_0.username, v3_0.filter);
       v2_2.userTag.hide();
     });
-    $.contextMenu({
+    UI.contextMenu.register({
       selector: ".chatBox",
       build: function (v3_0) {
         var v3_1 = {
@@ -23664,7 +24414,7 @@ class ChatDialog extends Dialog {
         return v3_1;
       },
     });
-    $.contextMenu({
+    UI.contextMenu.register({
       selector: ".chatBox a",
       build: function (v3_0) {
         var v3_1 = {
@@ -23696,7 +24446,7 @@ class ChatDialog extends Dialog {
         return v3_1;
       },
     });
-    $.contextMenu({
+    UI.contextMenu.register({
       selector: ".chatBox img",
       build: function (v3_0) {
         return {
@@ -23736,6 +24486,17 @@ class ChatDialog extends Dialog {
       v2_2.sendMessage();
       v2_2.content.find('input[name="text"]').focus();
     });
+    this.content.find('button[name="attachImage"]').on(UI.pointerEvent("click"), function (v3_0) {
+      v3_0.preventDefault();
+      v2_2.content.find('input[name="imageFile"]').trigger("click");
+    });
+    this.content.find('input[name="imageFile"]').on("change", function (v3_0) {
+      if (this.files && this.files[0]) {
+        v2_2.handleImageFile(this.files[0]);
+      }
+      $(this).val("");
+    });
+    this.updateAttachImageButton();
     this.content.find(".chatBox").on("copy", function (v3_0) {
       // Only hide msgTime if fixCopyAction is NOT true
       if (localStorage.getItem("fixCopyAction") !== "true") {
@@ -23753,6 +24514,7 @@ class ChatDialog extends Dialog {
       }
     });
     this.content.find('input[name="text"]').on("focus", function (v3_0) {
+      v2_2.updateAttachImageButton();
       var v3_1 = v2_2.currentWord(this);
       var v3_2 = v3_1.word;
       if (v3_2[0] == "@") {
@@ -24052,6 +24814,7 @@ class ChatDialog extends Dialog {
     $(room).on("roomPrivilegesChanged", function (v3_0) {
       var v3_1 = room.can("modmessageuse");
       v2_0.setChannelProperty("staff", "room", "locked", !v3_1);
+      v2_0.updateAttachImageButton();
     });
     $(room).on("userLeft.chatevents userJoined.chatevents", function (v3_0) {
       let v3_1 = room.getUserCount();
@@ -24394,44 +25157,45 @@ class ChatDialog extends Dialog {
           '"></div> ' +
           v2_3;
       }
-      if (v2_5 && v2_5.data) {
-        v2_3 = '<img src="' + v2_5.data + '" class="chatDataUri transparentBg" /><br>' + v2_3;
+      var v2_10 = safeImageDataURL(v2_5);
+      if (v2_10) {
+        v2_3 = '<img src="' + v2_10 + '" class="chatDataUri transparentBg" /><br>' + v2_3;
       }
-      var v2_10 = [];
-      var v2_11 = false;
-      const v3_0 = /(?:^|\s?)@([^\s]+?)([,\.¡\!¿\?'"\:\;]*?)(?:$|\s)/g;
+      var v2_11 = [];
+      var v2_12 = false;
+      const v3_0 = /(?:^|\s?)@([^\s&]+?)((?:&[a-zA-Z0-9#]{1,8};|[,\.¡\!¿\?'"\:\;])*?)(?:$|\s)/g;
       v2_3 = v2_3.replace(v3_0, function (v4_0, v4_1, v4_2) {
         let v4_3 = "";
         if (room.myself.username == v4_1) {
-          v2_11 = true;
+          v2_12 = true;
           v4_3 = " chatTagYou";
         } else if (!room.userExists(v4_1)) {
           v4_3 = " chatTagUnknown";
         }
-        v2_10.push(v4_1);
+        v2_11.push(v4_1);
         return ' <span class="chatTag' + v4_3 + '">@' + v4_1 + "</span>" + v4_2 + " ";
       });
       v2_3 = v2_3.replace(
         /(\p{Emoji_Presentation}|\p{Extended_Pictographic})(?![^<]*>|[^<>]*<\/)/gu,
         '<span class="chatEmoji">$&</span>',
       );
-      var v2_12 = this.composeHTML(v2_2, nl2br(parseURL(v2_3)), v2_4);
-      var v2_13 = $(v2_12.block);
-      v2_13.find(".msgContent").append(v2_12.text);
-      var v2_14 = this.lastMessage(v2_0, v2_1);
-      if (v2_14.type == v2_2 && v2_6 && v2_14.username == v2_6.username) {
-        var v2_15 = $(v2_12.text);
-        if (v2_14.timestamp != v2_15.find(".msgTime").data("timestamp")) {
-          v2_15.find(".msgTime").text(v2_15.find(".msgTime").data("timestamp"));
+      var v2_13 = this.composeHTML(v2_2, nl2br(parseURL(v2_3)), v2_4);
+      var v2_14 = $(v2_13.block);
+      v2_14.find(".msgContent").append(v2_13.text);
+      var v2_15 = this.lastMessage(v2_0, v2_1);
+      if (v2_15.type == v2_2 && v2_6 && v2_15.username == v2_6.username) {
+        var v2_16 = $(v2_13.text);
+        if (v2_15.timestamp != v2_16.find(".msgTime").data("timestamp")) {
+          v2_16.find(".msgTime").text(v2_16.find(".msgTime").data("timestamp"));
         }
-        this.addLine(v2_0, v2_1, v2_2, v2_15, v2_11, true);
+        this.addLine(v2_0, v2_1, v2_2, v2_16, v2_12, true);
       } else {
-        this.addLine(v2_0, v2_1, v2_2, v2_13, v2_11);
+        this.addLine(v2_0, v2_1, v2_2, v2_14, v2_12);
       }
       if (!this.isVisible()) {
-        var v2_16;
+        var v2_17;
         if (v2_4) {
-          v2_16 =
+          v2_17 =
             '<span class="notify' +
             v2_2 +
             "_" +
@@ -24441,24 +25205,24 @@ class ChatDialog extends Dialog {
             '">' +
             escapeHTML(room.users[v2_4].username) +
             "</span>:&nbsp;" +
-            $(v2_12.text).find(".msgText").html() +
+            $(v2_13.text).find(".msgText").html() +
             "</span>";
         } else {
-          v2_16 = v2_12.text;
+          v2_17 = v2_13.text;
         }
-        var v2_17 = v2_2;
+        var v2_18 = v2_2;
         if (v2_2 == "MSG") {
           if (v2_1 == "room") {
             if (v2_0 == "public") {
-              v2_17 = "PUBLICROOM";
+              v2_18 = "PUBLICROOM";
             } else {
-              v2_17 = "STAFFROOM";
+              v2_18 = "STAFFROOM";
             }
           } else if (v2_1 == "user") {
-            v2_17 = "PM";
+            v2_18 = "PM";
           }
         }
-        this.showNotification(v2_17, v2_16, 5);
+        this.showNotification(v2_18, v2_17, 5);
       }
       if (v2_9 != null) {
         this.requestThumb(v2_9);
@@ -24537,6 +25301,13 @@ class ChatDialog extends Dialog {
     this.scroll.scroll({
       y: "100%",
     });
+  }
+  updateAttachImageButton() {
+    var v2_0 = false;
+    try {
+      v2_0 = room.can("pasteimagesinchat");
+    } catch (v3_0) {}
+    this.content.find('button[name="attachImage"]').toggle(!!v2_0);
   }
   handleImageFile(v2_0) {
     if (!room.can("pasteimagesinchat")) {
@@ -25070,7 +25841,7 @@ class UndoDialog extends Dialog {
           },
         });
         this.content.find("#undoPreview").css({
-          "background-color": room.backgroundColor,
+          "background-color": room.board.displayBackgroundColor,
           width: room.board.canvasWidth + "px",
           height: room.board.canvasHeight + "px",
         });
@@ -25101,7 +25872,7 @@ class UndoDialog extends Dialog {
           room.board.canvasHeight,
           true,
         );
-        this.undoViewer.setBackground(room.board.backgroundColor);
+        this.undoViewer.setBackground(room.board.displayBackgroundColor);
         this.selection = this.undoViewer.selectionTool;
         this.content.find("#toolPan").on("click", function (v5_0) {
           v5_0.preventDefault();
@@ -25130,7 +25901,7 @@ class UndoDialog extends Dialog {
           v2_1.undoViewer.zoomOut();
         });
         this.content.find("#toolPan").addClass("selectedTool");
-        $.contextMenu({
+        UI.contextMenu.register({
           selector: "#undoPreview",
           build: function (v5_0) {
             var v5_1 = {
@@ -26417,8 +27188,10 @@ class RoomManagerBansSubDialog extends SubDialog {
       "IP",
       "Banned by",
       "Length",
+      "Reason",
+      "PublicReason",
     ]);
-    this.table.hideColumns([1, 2, 3, 4, 5, 6, 7]);
+    this.table.hideColumns([1, 2, 3, 4, 5, 6, 7, 11, 12]);
     this.table.columnLink(9, 5);
     this.table.columnLink(10, 4);
     this.table.headerCaption(8, textManager.getString("roommanager.bans.rowIP"));
@@ -26475,6 +27248,8 @@ class RoomManagerBansSubDialog extends SubDialog {
         v3_2.username = v2_0.dialog.modal.find('input[name="username"]').val();
         v3_2.ip = v3_1;
         v3_2.expires = v2_0.dialog.modal.find('select[name="banLength"]').val();
+        v3_2.reason = v2_0.dialog.modal.find('textarea[name="reason"]').val();
+        v3_2.publicreason = v2_0.dialog.modal.find('textarea[name="publicreason"]').val();
         socket.send(v3_2, true);
         v2_0.dialog.loading(true);
       } else {
@@ -26494,6 +27269,8 @@ class RoomManagerBansSubDialog extends SubDialog {
         v3_2.username = v2_0.dialog.modal.find('input[name="username"]').val();
         v3_2.ip = v3_1;
         v3_2.expires = v2_0.dialog.modal.find('select[name="banLength"]').val();
+        v3_2.reason = v2_0.dialog.modal.find('textarea[name="reason"]').val();
+        v3_2.publicreason = v2_0.dialog.modal.find('textarea[name="publicreason"]').val();
         socket.send(v3_2, true);
         v2_0.dialog.loading(true);
       } else {
@@ -26523,6 +27300,8 @@ class RoomManagerBansSubDialog extends SubDialog {
         v3_1.staffname,
         v3_1.staffrank,
         v3_1.staffuid,
+        v3_1.reason,
+        v3_1.publicreason,
       );
     });
     $(this.table).on("tableRowDoubleClick.banSubdialog", function (v3_0) {
@@ -26534,7 +27313,7 @@ class RoomManagerBansSubDialog extends SubDialog {
         var v3_1 = false;
         if (v3_0.type == "tableRowSelected") {
           var v3_2 = v2_1.table.getSelected();
-          if (v3_2[0].Staffuid == room.myself.uid || room.can("unbanothers")) {
+          if (v3_2[0].Staffuid == room.myself.uid || room.can("roombans")) {
             v3_1 = true;
           }
         }
@@ -26567,41 +27346,48 @@ class RoomManagerBansSubDialog extends SubDialog {
     this.dialog.modal.find('input[name="banid"]').val(v2_0[0].ID);
     this.dialog.modal.find('input[name="address"]').val(v2_0[0].Address);
     this.dialog.modal.find('input[name="username"]').val(v2_0[0].Username);
+    this.dialog.modal.find('textarea[name="reason"]').val(v2_0[0].Reason || "");
+    this.dialog.modal.find('textarea[name="publicreason"]').val(v2_0[0].PublicReason || "");
   }
-  addBanRow(v2_0, v2_1, v2_2, v2_3, v2_4, v2_5, v2_6) {
-    var v2_7;
+  addBanRow(v2_0, v2_1, v2_2, v2_3, v2_4, v2_5, v2_6, v2_7 = "", v2_8 = "") {
+    var v2_9;
     if (v2_3 >= 2000000000) {
-      v2_7 = textManager.getString("global.lengths.lblPermanent");
+      v2_9 = textManager.getString("global.lengths.lblPermanent");
     } else {
-      v2_7 = formatTimestamp(v2_3 - UI.timeDiff);
+      v2_9 = formatTimestamp(v2_3 - UI.timeDiff);
     }
-    var v2_8 = v2_1 + '<br /><span class="smallDate">' + escapeHTML(v2_2) + "</span>";
-    var v2_9 = '<span class="' + UI.rankToStyle(v2_5) + '">' + v2_4 + "</span>";
-    return this.table.addRow([v2_0, v2_1, v2_2, v2_3, v2_4, v2_5, v2_6, v2_8, v2_9, v2_7], false);
+    var v2_10 = v2_1 + '<br /><span class="smallDate">' + escapeHTML(v2_2) + "</span>";
+    var v2_11 = '<span class="' + UI.rankToStyle(v2_5) + '">' + v2_4 + "</span>";
+    return this.table.addRow(
+      [v2_0, v2_1, v2_2, v2_3, v2_4, v2_5, v2_6, v2_10, v2_11, v2_9, v2_7 || "", v2_8 || ""],
+      false,
+    );
   }
-  updateBanRow(v2_0, v2_1, v2_2, v2_3, v2_4, v2_5, v2_6) {
-    var v2_7 = this.table.find(this.table.getColumnId("ID"), v2_0);
-    if (v2_7 != null) {
-      var v2_8;
+  updateBanRow(v2_0, v2_1, v2_2, v2_3, v2_4, v2_5, v2_6, v2_7 = "", v2_8 = "") {
+    var v2_9 = this.table.find(this.table.getColumnId("ID"), v2_0);
+    if (v2_9 != null) {
+      var v2_10;
       if (v2_3 >= 2000000000) {
-        v2_8 = textManager.getString("global.lengths.lblPermanent");
+        v2_10 = textManager.getString("global.lengths.lblPermanent");
       } else {
-        v2_8 = formatTimestamp(v2_3 - UI.timeDiff);
+        v2_10 = formatTimestamp(v2_3 - UI.timeDiff);
       }
-      var v2_9 = v2_1 + '<br /><span class="smallDate">' + escapeHTML(v2_2) + "</span>";
-      var v2_10 = '<span class="' + UI.rankToStyle(v2_5) + '">' + v2_4 + "</span>";
-      var v2_11 = {
+      var v2_11 = v2_1 + '<br /><span class="smallDate">' + escapeHTML(v2_2) + "</span>";
+      var v2_12 = '<span class="' + UI.rankToStyle(v2_5) + '">' + v2_4 + "</span>";
+      var v2_13 = {
         [this.table.getColumnId("Address")]: v2_1,
         [this.table.getColumnId("Username")]: v2_2,
         [this.table.getColumnId("Timestamp")]: v2_3,
-        [this.table.getColumnId("IP")]: v2_9,
+        [this.table.getColumnId("IP")]: v2_11,
         [this.table.getColumnId("Staffname")]: v2_4,
         [this.table.getColumnId("Staffrank")]: v2_5,
         [this.table.getColumnId("Staffuid")]: v2_6,
-        [this.table.getColumnId("Banned by")]: v2_10,
-        [this.table.getColumnId("Length")]: v2_8,
+        [this.table.getColumnId("Banned by")]: v2_12,
+        [this.table.getColumnId("Length")]: v2_10,
+        [this.table.getColumnId("Reason")]: v2_7 || "",
+        [this.table.getColumnId("PublicReason")]: v2_8 || "",
       };
-      this.table.updateRow(v2_7, v2_11);
+      this.table.updateRow(v2_9, v2_13);
     }
   }
   gotResponse(v2_0) {
@@ -26616,6 +27402,8 @@ class RoomManagerBansSubDialog extends SubDialog {
           v2_0.ban.staffname,
           v2_0.ban.staffrank,
           v2_0.ban.uid,
+          v2_0.ban.reason,
+          v2_0.ban.publicreason,
         );
         var v2_1 = this.table.find(this.table.getColumnId("ID"), v2_0.ban.id);
         if (v2_1 != null) {
@@ -26635,6 +27423,9 @@ class RoomManagerBansSubDialog extends SubDialog {
           v2_0.ban.time,
           v2_0.ban.staffname,
           v2_0.ban.staffrank,
+          v2_0.ban.staffuid,
+          v2_0.ban.reason,
+          v2_0.ban.publicreason,
         );
         var v2_1 = this.table.find(this.table.getColumnId("ID"), v2_0.ban.id);
         if (v2_1 != null) {
@@ -26838,7 +27629,7 @@ class v0_6 extends SubDialog {
         var v3_1 = false;
         if (v3_0.type == "tableRowSelected") {
           var v3_2 = v2_1.table.getSelected();
-          if (v3_2[0].Staffuid == room.myself.uid || room.can("unsilenceothers")) {
+          if (v3_2[0].Staffuid == room.myself.uid || room.can("roomsilences")) {
             v3_1 = true;
           }
         }
@@ -27146,7 +27937,7 @@ class v0_7 extends SubDialog {
         var v3_1 = false;
         if (v3_0.type == "tableRowSelected") {
           var v3_2 = v2_1.table.getSelected();
-          if (v3_2[0].Staffuid == room.myself.uid || room.can("unmuteothers")) {
+          if (v3_2[0].Staffuid == room.myself.uid || room.can("roommutes")) {
             v3_1 = true;
           }
         }
@@ -27304,6 +28095,7 @@ class SaveDialog extends Dialog {
     this.selectionPrevious = null;
     this.selectionInitial = null;
     this.selectionToolType = null;
+    this.isAnimation = false;
     this.gallerySaves = 0;
     this.galleryLimit = 10;
     this.tagManager = null;
@@ -27367,7 +28159,7 @@ class SaveDialog extends Dialog {
       if (v3_0.checked) {
         v2_2.saveViewer.setBackground("transparent");
       } else {
-        v2_2.saveViewer.setBackground(room.board.backgroundColor);
+        v2_2.saveViewer.setBackground(room.board.displayBackgroundColor);
       }
       v2_2.setPreference("background", v3_0.checked);
     });
@@ -27531,38 +28323,41 @@ class SaveDialog extends Dialog {
       return Promise.resolve(v2_0);
     }
     var v2_1 = new AdvancedCanvas(this.saveViewer.imgWidth, this.saveViewer.imgHeight);
-    v2_1.clear(room.board.backgroundColor);
+    v2_1.clear(room.board.displayBackgroundColor);
     return v0_19(v2_0).then(function (v3_0) {
       v2_1.drawImage(v3_0, 0, 0);
       return v2_1.getData();
     });
   }
   getExtension() {
-    if (this.content.find("#savePreview canvas:visible").length > 0) {
-      return "png";
-    } else {
+    if (this.isAnimation) {
       return "gif";
+    } else {
+      return "png";
     }
   }
   getDataURL() {
-    if (this.content.find("#savePreview canvas:visible").length > 0) {
-      if (this.saveViewer.images && this.saveViewer.images.length > 0) {
-        if (this.saveViewer.images.length === 1) {
-          return this.saveViewer.images[0].src;
-        } else {
-          var v2_0 = new AdvancedCanvas(this.saveViewer.imgWidth, this.saveViewer.imgHeight);
-          this.saveViewer.images.forEach((v6_0) => {
-            var v6_1 = new Image();
-            v6_1.src = v6_0.src;
-            v2_0.drawImage(v6_1, 0, 0);
-          });
-          return v2_0.getData();
-        }
+    if (this.isAnimation) {
+      if (this.saveViewer.images.length > 0) {
+        return this.saveViewer.images[0].src;
+      } else {
+        return null;
       }
-      return null;
-    } else {
-      return this.content.find("#savePreview img").attr("src");
     }
+    if (this.saveViewer.images && this.saveViewer.images.length > 0) {
+      if (this.saveViewer.images.length === 1) {
+        return this.saveViewer.images[0].src;
+      } else {
+        var v2_0 = new AdvancedCanvas(this.saveViewer.imgWidth, this.saveViewer.imgHeight);
+        this.saveViewer.images.forEach((v5_0) => {
+          var v5_1 = new Image();
+          v5_1.src = v5_0.src;
+          v2_0.drawImage(v5_1, 0, 0);
+        });
+        return v2_0.getData();
+      }
+    }
+    return null;
   }
   save(v2_0) {
     if (this.saveViewer.selectionTool.hasSelection()) {
@@ -27694,6 +28489,11 @@ class SaveDialog extends Dialog {
     });
   }
   gif(v2_0) {
+    this.isAnimation = true;
+    this.saveViewer.selectionTool.clear();
+    this.selectionPrevious = null;
+    this.selectionInitial = null;
+    this.selectionToolType = null;
     this.simpleMode(true);
     this.canvasWidth = $(v2_0).width();
     this.canvasHeight = $(v2_0).height();
@@ -27703,8 +28503,10 @@ class SaveDialog extends Dialog {
   simpleMode(v2_0) {
     if (v2_0) {
       this.saveViewer.setMode("pan");
+      this.content.find("#savePreview canvas").hide();
       this.background.setReadOnly(true);
     } else {
+      this.content.find("#savePreview canvas").show();
       this.background.setReadOnly(false);
     }
   }
@@ -27788,6 +28590,7 @@ class SaveDialog extends Dialog {
   onShow(v2_0 = "full", v2_1 = null) {
     var v2_2 = this;
     this.loading(true);
+    this.isAnimation = false;
     this.simpleMode(false);
     this.canvasWidth = room.board.canvasWidth || 800;
     this.canvasHeight = room.board.canvasHeight || 600;
@@ -27815,15 +28618,16 @@ class SaveDialog extends Dialog {
       if (this.getPreference("background")) {
         this.saveViewer.setBackground("transparent");
       } else {
-        this.saveViewer.setBackground(room.board.backgroundColor);
+        this.saveViewer.setBackground(room.board.displayBackgroundColor);
       }
     } else {
       this.background.setValue(false);
-      this.saveViewer.setBackground(room.board.backgroundColor);
+      this.saveViewer.setBackground(room.board.displayBackgroundColor);
     }
     this.changed();
   }
   onHide() {
+    this.isAnimation = false;
     this.layers = null;
     this.layersCheckbox = null;
     this.canvasWidth = 1;
@@ -28487,7 +29291,7 @@ class UserGalleryDialog extends Dialog {
       })
       .overlayScrollbars();
     var v2_1 = this;
-    $.contextMenu({
+    UI.contextMenu.register({
       selector: "#shareGalleryBtn",
       trigger: "left",
       build: function (v3_0) {
@@ -28515,7 +29319,7 @@ class UserGalleryDialog extends Dialog {
         return v3_1;
       },
     });
-    $.contextMenu({
+    UI.contextMenu.register({
       selector: "#profileGallery img",
       trigger: "right",
       build: function (v3_0) {
@@ -28691,6 +29495,9 @@ class UserGalleryDialog extends Dialog {
     this.scroll.scroll({
       y: 0,
     });
+    try {
+      this.scroll.update(true);
+    } catch (v3_0) {}
     this.loading(false);
     this.changed();
   }
@@ -28912,6 +29719,322 @@ class UserGalleryDialog extends Dialog {
     }
   }
 }
+class UserProfileDialog extends Dialog {
+  constructor(v2_0, v2_1) {
+    super(v2_0, v2_1);
+    this.width = 720;
+    this.targetUid = null;
+    this.targetUsername = null;
+    this.isOwner = false;
+    this.showcaseMax = 0;
+    this.youFollowing = false;
+    this.icon = "fa-id-card";
+    this.caption = textManager.getString("userprofile.title");
+    this.loadContent(this.loadFile("forms/userprofile.main.html"));
+  }
+  loadContent(v2_0) {
+    this.content.html(v2_0);
+    var v2_1 = this;
+    this.showcase = new ReorderableImageGrid(this.content.find(".userProfileShowcase"));
+    this.posts = new ReorderableImageGrid(this.content.find(".userProfilePosts"));
+    $(this.showcase).on("imageSelected", function (v3_0) {
+      UI.galleryImageDialog.show(v3_0.imageId);
+    });
+    $(this.showcase).on("showcaseReordered", function (v3_0) {
+      v2_1.sendReorder(v3_0.ids);
+    });
+    $(this.posts).on("imageSelected", function (v3_0) {
+      UI.galleryImageDialog.show(v3_0.imageId);
+    });
+    this.content.on(UI.pointerEvent("click"), 'button[name="gallery"]', function (v3_0) {
+      v3_0.preventDefault();
+      if (v2_1.targetUid) {
+        v2_1.hide();
+        UI.userGalleryDialog.loadGallery("UID", v2_1.targetUid);
+        UI.userGalleryDialog.show();
+      }
+    });
+    this.content.on(UI.pointerEvent("click"), 'button[name="account"]', function (v3_0) {
+      v3_0.preventDefault();
+      UI.profileDialog.show();
+    });
+    this.content.on(UI.pointerEvent("click"), 'button[name="follow"]', function (v3_0) {
+      v3_0.preventDefault();
+      if (!v2_1.targetUid) {
+        return;
+      }
+      if (v2_1.youFollowing) {
+        UI.dialogHandler.showConfirmation(
+          textManager.getString("usergallery.lblUnfollowConfirm"),
+          function (v5_0) {
+            if (v5_0) {
+              v2_1.sendFollow("unfollow");
+            }
+            UI.dialogHandler.destroyConfirmation();
+          },
+        );
+      } else {
+        v2_1.sendFollow("follow");
+      }
+    });
+    this.content.on(UI.pointerEvent("click"), 'button[name="friend"]', function (v3_0) {
+      v3_0.preventDefault();
+      if (!v2_1.targetUid) {
+        return;
+      }
+      UI.friendsDialog.requestByUID(v2_1.targetUid);
+    });
+    this.content.on(UI.pointerEvent("click"), 'button[name="message"]', function (v3_0) {
+      v3_0.preventDefault();
+      var v3_1 = v2_1.roomUser();
+      if (!v3_1) {
+        return;
+      }
+      var v3_2 = v3_1.username;
+      v2_1.hide();
+      UI.chatDialog.show();
+      if (!UI.chatDialog.existsChannel(v3_2, "user")) {
+        UI.chatDialog.addChannel(v3_2, "user");
+      }
+      UI.chatDialog.selectChannel(v3_2, "user");
+    });
+    this.content.on(UI.pointerEvent("click"), ".userProfileComment", function (v3_0) {
+      v3_0.preventDefault();
+      var v3_1 = $(this).data("image");
+      if (v3_1) {
+        UI.galleryImageDialog.show(v3_1);
+      }
+    });
+    this.scroll = this.content
+      .find(".userProfileScroll")
+      .overlayScrollbars({
+        className: "os-theme-light",
+        overflowBehavior: {
+          x: "hidden",
+        },
+      })
+      .overlayScrollbars();
+    this.scroll.addExt("fmExtension");
+  }
+  loadProfile(v2_0, v2_1) {
+    this.targetUid = v2_0;
+    this.targetUsername = v2_1;
+    this.loading(true);
+    var v2_2 = {
+      command: "GALLERYGET",
+      action: "Profile",
+      uid: v2_0,
+    };
+    socket.send(v2_2, true);
+  }
+  gotProfile(v2_0) {
+    var v2_1 = v2_0.target || {};
+    this.targetUid = v2_1.uid;
+    this.targetUsername = v2_1.username;
+    this.isOwner = !!v2_0.isOwner;
+    this.showcaseMax = v2_0.showcaseMax || 0;
+    this.youFollowing = !!v2_1.youFollowing;
+    this.content.find(".userProfileName").html(v0_22(v2_1.username, v2_1));
+    if (v2_1.joindate) {
+      this.content
+        .find(".userProfileJoinedText")
+        .text(
+          textManager.getString(
+            "userprofile.lblJoined",
+            formatTimestamp(v2_1.joindate, false),
+            false,
+          ),
+        );
+      this.content.find(".userProfileJoined").removeClass("invisibleContent");
+    } else {
+      this.content.find(".userProfileJoined").addClass("invisibleContent");
+    }
+    this.content.find(".userProfileIdText").text(v2_1.uid);
+    this.renderRank(v2_1);
+    this.renderActions();
+    this.renderStats(v2_0.stats || {}, v2_1);
+    this.renderShowcase(v2_0.showcase || []);
+    this.renderPosts(v2_0.posts || [], v2_0.totalPosts || 0);
+    this.renderComments(v2_0.comments || []);
+    this.loading(false);
+    this.changed();
+  }
+  renderRank(v2_0) {
+    var v2_1 = "RU";
+    var v2_2 = this.roomUser();
+    if (this.isOwner && typeof room != "undefined" && room && room.myself) {
+      v2_1 = room.myself.rank;
+    } else if (v2_2) {
+      v2_1 = v2_2.rank;
+    } else if (v2_0.isGlobal) {
+      v2_1 = "GM";
+    }
+    this.content
+      .find(".userProfileRank")
+      .text(UI.userRank(v2_1, false))
+      .attr("class", "userProfileRank " + UI.rankToStyle(v2_1));
+  }
+  renderActions() {
+    var v2_0 = this.youFollowing ? "usergallery.lblUnfollow" : "usergallery.lblFollow";
+    this.content.find(".userProfileFollowLabel").text(textManager.getString(v2_0, null, false));
+    this.content
+      .find('button[name="follow"]')
+      .toggleClass("is-on", this.youFollowing)
+      .prop("disabled", this.isOwner)
+      .toggleClass("invisibleContent", this.isOwner);
+    var v2_1 =
+      !this.isOwner && typeof room != "undefined" && room.myself && room.myself.rank != "UU";
+    this.content.find('button[name="friend"]').toggleClass("invisibleContent", !v2_1);
+    this.content.find('button[name="message"]').toggleClass("invisibleContent", !this.roomUser());
+    this.content.find('button[name="account"]').toggleClass("invisibleContent", !this.isOwner);
+  }
+  roomUser() {
+    if (!this.targetUid || typeof room == "undefined" || !room || !room.users) {
+      return null;
+    }
+    for (var v2_0 in room.users) {
+      var v2_1 = room.users[v2_0];
+      if (v2_1 && v2_1.uid && Number(v2_1.uid) === Number(this.targetUid)) {
+        return v2_1;
+      }
+    }
+    return null;
+  }
+  sendFollow(v2_0) {
+    this.content.find('button[name="follow"]').prop("disabled", true);
+    socket.send(
+      {
+        command: "GALLERYSET",
+        action: "User",
+        perform: v2_0,
+        targetUserId: this.targetUid,
+      },
+      true,
+    );
+  }
+  updateUserInfo(v2_0) {
+    if (!v2_0 || Number(v2_0.uid) !== Number(this.targetUid)) {
+      this.content.find('button[name="follow"]').prop("disabled", false);
+      return;
+    }
+    this.youFollowing = !!v2_0.youFollowing;
+    this.content
+      .find(".userProfileStatFollowers .userProfileStatValue")
+      .text(v2_0.followersCount || 0);
+    this.renderActions();
+    this.content.find('button[name="follow"]').prop("disabled", this.isOwner);
+  }
+  renderStats(v2_0, v2_1) {
+    var v2_2 = [
+      {
+        name: "posts",
+        value: v2_0.uploads || 0,
+        key: "userprofile.statPosts",
+      },
+      {
+        name: "likes",
+        value: v2_0.likes || 0,
+        key: "userprofile.statLikes",
+      },
+      {
+        name: "favorites",
+        value: v2_0.favorites || 0,
+        key: "userprofile.statFavorites",
+      },
+      {
+        name: "comments",
+        value: v2_0.comments || 0,
+        key: "userprofile.statComments",
+      },
+      {
+        name: "followers",
+        value: v2_1.followersCount || 0,
+        key: "userprofile.statFollowers",
+      },
+    ];
+    var v2_3 = "";
+    v2_2.forEach(function (v3_0) {
+      v2_3 +=
+        '<div class="userProfileStat userProfileStat' +
+        v3_0.name.charAt(0).toUpperCase() +
+        v3_0.name.slice(1) +
+        '"><span class="userProfileStatValue">' +
+        v3_0.value +
+        '</span><span class="userProfileStatLabel">' +
+        textManager.getString(v3_0.key, null, false) +
+        "</span></div>";
+    });
+    this.content.find(".userProfileStats").html(v2_3);
+  }
+  renderShowcase(v2_0) {
+    var v2_1 = this.content.find(".userProfileShowcaseSection");
+    if (!v2_0 || v2_0.length === 0) {
+      v2_1.hide();
+      return;
+    }
+    this.showcase.setImages(v2_0, this.isOwner);
+    this.content
+      .find(".userProfileShowcaseHint")
+      .toggleClass("invisibleContent", !this.isOwner || !(v2_0.length > 1));
+    v2_1.show();
+  }
+  renderPosts(v2_0, v2_1) {
+    this.posts.setImages(v2_0, false);
+    this.content.find(".userProfilePostCount").text(v2_1 > v2_0.length ? v2_1 : "");
+  }
+  renderComments(v2_0) {
+    var v2_1 = this.content.find(".userProfileComments");
+    v2_1.empty();
+    if (v2_0.length === 0) {
+      v2_1.append(
+        '<div class="noImages">' + textManager.getString("userprofile.lblNoComments") + "</div>",
+      );
+      return;
+    }
+    v2_0.forEach(function (v3_0) {
+      var v3_1 = $('<div class="userProfileComment"></div>');
+      v3_1.attr("data-image", v3_0.imageId);
+      v3_1.append('<div class="userProfileCommentThumb"><img src="' + v3_0.thumb + '" /></div>');
+      var v3_2 = stripBBCode(v3_0.comment || "")
+        .replace(/\s+/g, " ")
+        .trim();
+      var v3_3 = $('<div class="userProfileCommentBody"></div>');
+      v3_3.append('<div class="userProfileCommentText">' + escapeHTML(v3_2) + "</div>");
+      v3_3.append(
+        '<div class="userProfileCommentTime">' +
+          formatHour(v3_0.posted, true, true, true) +
+          "</div>",
+      );
+      v3_1.append(v3_3);
+      v2_1.append(v3_1);
+    });
+  }
+  sendReorder(v2_0) {
+    var v2_1 = {
+      command: "GALLERYSET",
+      action: "Showcase",
+      perform: "reorder",
+      ids: v2_0,
+    };
+    socket.send(v2_1, true);
+  }
+  showcaseChanged(v2_0) {
+    var v2_1 = this.form && this.form.is(":visible");
+    if (v2_1 && this.isOwner && this.targetUid) {
+      this.loadProfile(this.targetUid, this.targetUsername);
+    }
+  }
+  gotUnavailable(v2_0) {
+    this.loading(false);
+    UI.dialogHandler.showAlert(textManager.getString("userprofile.lblUnavailable"));
+    this.hide();
+  }
+  onHide() {
+    this.content.find(".userProfileName").text("");
+    this.content.find(".userProfileStats").empty();
+    this.content.find(".userProfileComments").empty();
+  }
+}
 class ProfileDialog extends Dialog {
   constructor(v2_0, v2_1) {
     super(v2_0, v2_1);
@@ -28930,10 +30053,6 @@ class ProfileDialog extends Dialog {
       if (v2_2.table) {
         v2_2.table.updated();
       }
-    });
-    this.content.on(UI.pointerEvent("click"), "#confirmUsername", function (v3_0) {
-      v3_0.preventDefault();
-      v2_2.changeAccount();
     });
     this.content.on(UI.pointerEvent("click"), "#verifyEmail", function (v3_0) {
       v3_0.preventDefault();
@@ -28977,47 +30096,7 @@ class ProfileDialog extends Dialog {
       this.content.find(".subcontentOption.selected").removeClass("selected");
       this.content.find(".subcontentOption[data-subcontent=" + v2_0 + "]").addClass("selected");
       this.loading(true);
-      if (v2_0 == "info") {
-        this.loadSubcontent(this.loadFile("forms/profile.info.html"));
-        this.content.find('input[name="username"]').val(room.myself.username);
-        this.content.find('input[name="status"]').val(room.myself.status);
-        this.content.find('input[name="status"]').focus();
-        this.content.find("#applyProfile").on(UI.pointerEvent("click"), function (v5_0) {
-          v5_0.preventDefault();
-          room.myself.changeStatus(v2_1.content.find('input[name="status"]').val());
-        });
-        this.content.on(UI.pointerEvent("click"), "#clearStatus", function (v5_0) {
-          v5_0.preventDefault();
-          v2_1.content.find('input[name="status"]').val("");
-        });
-        this.content.on(UI.pointerEvent("click"), "#changeUsername", function (v5_0) {
-          v5_0.preventDefault();
-          v2_1.enableModal(v2_1.loadFile("forms/profile.modal.changeusername.html"));
-          v2_1.modal.find('form[name="profileForm"]').submit(function (v6_0) {
-            v6_0.preventDefault();
-            v2_1.changeAccount();
-          });
-          v2_1.rememberCheckbox = new Checkbox(
-            v2_1.content.find('.check[name="newRemember"]').addClass("smallCheckbox"),
-            textManager.getString("login.lblRememberMe"),
-          );
-          v2_1.rememberCheckbox.setValue(UI.account.remembered);
-          v2_1.content.find('input[name="newUsername"]').focus();
-          v2_1.content.find('input[name="newUsername"]').val(UI.account.username);
-        });
-        this.scroll = this.content
-          .find(".dialogContentArea")
-          .overlayScrollbars({
-            className: "os-theme-light",
-            overflowBehavior: {
-              x: "hidden",
-            },
-          })
-          .overlayScrollbars();
-        this.scroll.addExt("fmExtension");
-        this.loading(false);
-        this.changed();
-      } else if (v2_0 == "account") {
+      if (v2_0 == "account") {
         this.loadSubcontent(this.loadFile("forms/profile.account.html"));
         var v2_2 = {
           command: "USERGET",
@@ -29028,6 +30107,12 @@ class ProfileDialog extends Dialog {
           v5_0.preventDefault();
           v2_1.enableModal(v2_1.loadFile("forms/profile.modal.changeemail.html"));
           v2_1.content.find('input[name="newEmail"]').focus();
+        });
+        this.content.on(UI.pointerEvent("click"), "#verifyEmailAddress", function (v5_0) {
+          v5_0.preventDefault();
+          var v5_1 = v2_1.content.find('input[name="email"]').val();
+          v2_1.enableModal(v2_1.loadFile("forms/profile.modal.changeemail.html"));
+          v2_1.content.find('input[name="newEmail"]').val(v5_1).focus();
         });
         this.content.on(UI.pointerEvent("click"), "#profileChangePassword", function (v5_0) {
           v5_0.preventDefault();
@@ -29060,8 +30145,16 @@ class ProfileDialog extends Dialog {
     }
   }
   verifyEmail() {
-    this.loading(true);
     var v2_0 = this.content.find('input[name="newEmail"]').val();
+    if (!isValidEmail(v2_0)) {
+      UI.dialogHandler.showAlert(
+        new Icon("fa-exclamation-triangle").html() +
+          " " +
+          textManager.getString("login.accountCreate.EMAILINVALID"),
+      );
+      return;
+    }
+    this.loading(true);
     var v2_1 = {
       command: "LOBBY",
       option: "ChangeEmail",
@@ -29107,26 +30200,6 @@ class ProfileDialog extends Dialog {
     socket.send(v2_3, true);
     this.disableModal();
     this.loading(true);
-  }
-  usernameChanged(v2_0) {
-    this.content.find('input[name="username"]').val(v2_0);
-  }
-  changeAccount() {
-    var v2_0 = {
-      command: "USERSET",
-      action: "Relog",
-    };
-    v2_0.username = this.content.find('input[name="newUsername"]').val();
-    v2_0.password = this.content.find('input[name="newPassword"]').val();
-    v2_0.remember = this.rememberCheckbox
-      ? this.rememberCheckbox.getValue()
-      : UI.account.remembered;
-    v2_0.deviceId = storage.cid;
-    v2_0.deviceInfo = device.getProperties();
-    socket.send(v2_0, true);
-    this.content.find('input[name="newUsername"]').val("");
-    this.content.find('input[name="newPassword"]').val("");
-    this.disableModal();
   }
   ownedRoomsList(v2_0) {
     var v2_1 = this.content.find("#ownedRoomsContent");
@@ -29207,24 +30280,36 @@ class ProfileDialog extends Dialog {
       this.content.find('input[name="lastPasswordChange"]').val(v2_1);
     }
     this.content.find('input[name="email"]').val(v2_0.email);
-    const v2_2 = this.content.find('span[name="emailVerificationStatus"]');
+    const v2_2 = isValidEmail(v2_0.email);
+    const v2_3 = this.content.find('span[name="emailVerificationStatus"]');
     if (v2_0.emailVerified) {
-      v2_2.html(
+      v2_3.html(
         new Icon("fa-check-circle", "fas").html() +
           ' <small class="ms-2"> ' +
           textManager.getString("profile.account.lblEmailVerified", null, false) +
           "</small>",
       );
-      v2_2.css("color", "#28a745");
+      v2_3.css("color", "#28a745");
+    } else if (v2_0.email && !v2_2) {
+      v2_3.html(
+        new Icon("fa-triangle-exclamation", "fas").html() +
+          ' <small class="ms-2"> ' +
+          textManager.getString("profile.account.lblEmailInvalid", null, false) +
+          "</small>",
+      );
+      v2_3.css("color", "#dc3545");
     } else {
-      v2_2.html(
+      v2_3.html(
         new Icon("fa-times-circle", "fas").html() +
           ' <small class="ms-2"> ' +
           textManager.getString("profile.account.lblEmailNotVerified", null, false) +
           "</small>",
       );
-      v2_2.css("color", "#dc3545");
+      v2_3.css("color", "#dc3545");
     }
+    this.content
+      .find("#verifyEmailAddress")
+      .toggleClass("invisibleContent", !!v2_0.emailVerified || !v2_0.email || !v2_2);
     this.loading(false);
     this.changed();
   }
@@ -29245,7 +30330,7 @@ class ProfileDialog extends Dialog {
     }
   }
   onShow() {
-    this.loadPage("info");
+    this.loadPage("account");
     this.content.find(".sidebar").overlayScrollbars({
       className: "os-theme-light",
       overflowBehavior: {
@@ -29305,6 +30390,77 @@ class ProfileDialog extends Dialog {
       UI.dialogHandler.showAlert(textManager.getString("alerts.txtPasswordChangeFailed"));
     }
     this.loading(false);
+  }
+}
+class EditProfileDialog extends Dialog {
+  constructor(v2_0, v2_1) {
+    super(v2_0, v2_1);
+    this.icon = "fa-id-card";
+    this.caption = textManager.getString("editprofile.title");
+    this.width = 560;
+    this.height = 420;
+    this.minWidth = 420;
+    this.minHeight = 340;
+    this.rememberCheckbox = null;
+    this.loadContent(this.loadFile("forms/editprofile.main.html"));
+    var v2_2 = this;
+    this.content.on(UI.pointerEvent("click"), "#applyProfile", function (v3_0) {
+      v3_0.preventDefault();
+      room.myself.changeStatus(v2_2.content.find('input[name="status"]').val());
+      v2_2.hide();
+    });
+    this.content.on(UI.pointerEvent("click"), "#clearStatus", function (v3_0) {
+      v3_0.preventDefault();
+      v2_2.content.find('input[name="status"]').val("");
+    });
+    this.content.on(UI.pointerEvent("click"), "#changeUsername", function (v3_0) {
+      v3_0.preventDefault();
+      v2_2.enableModal(v2_2.loadFile("forms/profile.modal.changeusername.html"));
+      v2_2.modal.find('form[name="profileForm"]').submit(function (v4_0) {
+        v4_0.preventDefault();
+        v2_2.changeAccount();
+      });
+      v2_2.rememberCheckbox = new Checkbox(
+        v2_2.content.find('.check[name="newRemember"]').addClass("smallCheckbox"),
+        textManager.getString("login.lblRememberMe"),
+      );
+      v2_2.rememberCheckbox.setValue(UI.account.remembered);
+      v2_2.content.find('input[name="newUsername"]').focus();
+      v2_2.content.find('input[name="newUsername"]').val(UI.account.username);
+    });
+    this.content.on(UI.pointerEvent("click"), "#confirmUsername", function (v3_0) {
+      v3_0.preventDefault();
+      v2_2.changeAccount();
+    });
+  }
+  loadContent(v2_0) {
+    this.content.html(v2_0);
+  }
+  changeAccount() {
+    var v2_0 = {
+      command: "USERSET",
+      action: "Relog",
+    };
+    v2_0.username = this.content.find('input[name="newUsername"]').val();
+    v2_0.password = this.content.find('input[name="newPassword"]').val();
+    v2_0.remember = this.rememberCheckbox
+      ? this.rememberCheckbox.getValue()
+      : UI.account.remembered;
+    v2_0.deviceId = storage.cid;
+    v2_0.deviceInfo = device.getProperties();
+    socket.send(v2_0, true);
+    this.content.find('input[name="newUsername"]').val("");
+    this.content.find('input[name="newPassword"]').val("");
+    this.disableModal();
+  }
+  usernameChanged(v2_0) {
+    this.content.find('input[name="username"]').val(v2_0);
+  }
+  onShow() {
+    this.content.find('input[name="username"]').val(room.myself.username);
+    this.content.find('input[name="status"]').val(room.myself.status);
+    this.content.find('input[name="status"]').focus();
+    this.changed();
   }
 }
 class ColorDialog extends Dialog {
@@ -40792,7 +41948,7 @@ class AnimationDialog extends Dialog {
       this.stop();
       if (v2_0 == "play") {
         this.loadSubcontent(this.loadFile("forms/animation.play.html"));
-        this.content.find("#frameBox").css("background-color", room.board.backgroundColor);
+        this.content.find("#frameBox").css("background-color", room.board.displayBackgroundColor);
         this.speedSlider = new Slider(this.content.find('div[name="speed"]'), 0.1, 15, 0.1);
         $(this.speedSlider).on("sliderChanged", function (v5_0) {
           v2_1.setPreference("speed", v5_0.value);
@@ -40868,7 +42024,7 @@ class AnimationDialog extends Dialog {
         var v2_4 = room.board.getAllLayers(0, 0, room.board.canvasWidth, room.board.canvasHeight);
         v2_4.then(function (v5_0) {
           var v5_1 = new AdvancedCanvas(room.board.canvasWidth, room.board.canvasHeight);
-          v5_1.clear(room.board.backgroundColor);
+          v5_1.clear(room.board.displayBackgroundColor);
           let v5_2 = 0;
           for (let v6_0 in v5_0) {
             v5_2++;
@@ -41142,7 +42298,7 @@ class MessengerDialog extends Dialog {
     $(this.emojiList).on("dialogClosed", function (v3_0) {
       v2_2.content.find('input[name="text"]').focus();
     });
-    $.contextMenu({
+    UI.contextMenu.register({
       selector: ".conversationBox",
       build: function (v3_0) {
         var v3_1 = {
@@ -41177,7 +42333,7 @@ class MessengerDialog extends Dialog {
         return v3_1;
       },
     });
-    $.contextMenu({
+    UI.contextMenu.register({
       selector: ".conversationBox a",
       build: function (v3_0) {
         var v3_1 = {
@@ -41209,7 +42365,7 @@ class MessengerDialog extends Dialog {
         return v3_1;
       },
     });
-    $.contextMenu({
+    UI.contextMenu.register({
       selector: 'a[name="options"]',
       trigger: "left",
       build: function (v3_0) {
@@ -41739,7 +42895,7 @@ class MessengerDialog extends Dialog {
     // console.log('User selected:', _0x71f239);
 
     // Attach context menu to messengerUser elements
-    $.contextMenu({
+    UI.contextMenu.register({
       selector: '.messengerUser[data-uid="' + v2_0 + '"]',
       // Attach to the specific user
       trigger: "right",
@@ -42016,20 +43172,20 @@ class v0_9 extends Dialog {
     this.minHeight = 380;
     this.sizeType = "md";
     this.loadContent(this.loadFile("forms/friends.main.html"));
-    this.scroll = this.content
-      .find(".friendListBox")
-      .overlayScrollbars({
-        className: "os-theme-light",
-        overflowBehavior: {
-          x: "hidden",
-        },
-      })
-      .overlayScrollbars();
-    this.scroll.addExt("fmExtension");
     this.presence = "online";
     this.pendingRequests = 0;
+    this.friends = [];
+    this.requests = [];
+    this.sent = [];
+    this.page = "friends";
+    this.scroll = null;
+    this.rendering = false;
     var v2_2 = this;
-    this.content.find('a[name="addFriend"]').on(UI.pointerEvent("click"), function (v3_0) {
+    this.content.on(UI.pointerEvent("click"), ".subcontentOption", function (v3_0) {
+      v3_0.preventDefault();
+      v2_2.loadPage($(this).data("subcontent"));
+    });
+    this.content.on(UI.pointerEvent("click"), 'a[name="addFriend"]', function (v3_0) {
       v3_0.preventDefault();
       v2_2.enableModal(v2_2.loadFile("forms/friends.modal.newrequest.html"));
       v2_2.content.find('input[name="friendUsername"]').focus();
@@ -42044,7 +43200,7 @@ class v0_9 extends Dialog {
         }
       });
     });
-    this.content.find('select[name="presence"]').on("change", function (v3_0) {
+    this.content.on("change", 'select[name="presence"]', function (v3_0) {
       v2_2.requestStatus($(this).val());
     });
     this.content.on(UI.pointerEvent("click"), '.friendRow a[name="message"]', function (v3_0) {
@@ -42052,11 +43208,11 @@ class v0_9 extends Dialog {
       var v3_1 = $(this).closest(".friendRow");
       UI.messengerDialog.openWith(v3_1.data("uid"), v3_1.data("username"));
     });
-    this.content.on(UI.pointerEvent("click"), '.friendRow a[name="gallery"]', function (v3_0) {
+    this.content.on(UI.pointerEvent("click"), '.friendRow a[name="profile"]', function (v3_0) {
       v3_0.preventDefault();
       var v3_1 = $(this).closest(".friendRow");
-      UI.userGalleryDialog.loadGallery("UID", v3_1.data("uid"));
-      UI.userGalleryDialog.show();
+      UI.userProfileDialog.loadProfile(v3_1.data("uid"), v3_1.data("username"));
+      UI.userProfileDialog.show();
     });
     this.content.on(UI.pointerEvent("click"), '.friendRow a[name="remove"]', function (v3_0) {
       v3_0.preventDefault();
@@ -42095,6 +43251,95 @@ class v0_9 extends Dialog {
   }
   loadContent(v2_0) {
     this.content.html(v2_0);
+  }
+  loadSubcontent(v2_0) {
+    this.content.find(".dynamicDialogArea").html(v2_0);
+  }
+  loadPage(v2_0) {
+    if (v2_0 !== "friends" && v2_0 !== "requests") {
+      return;
+    }
+    this.page = v2_0;
+    this.form.find(".subcontentOption").removeClass("selected");
+    this.form.find(".subcontentOption[data-subcontent=" + v2_0 + "]").addClass("selected");
+    if (v2_0 == "friends") {
+      this.loadSubcontent(this.loadFile("forms/friends.list.html"));
+      this.setPresence(this.presence);
+      this.renderFriends();
+      this.attachScroll(".friendListBox");
+    } else {
+      this.loadSubcontent(this.loadFile("forms/friends.requests.html"));
+      this.renderRequests();
+      this.attachScroll(".friendRequestsBox");
+    }
+    this.refresh();
+    this.changed();
+  }
+  attachScroll(v2_0) {
+    var v2_1 = this.content.find(v2_0);
+    if (v2_1.length === 0) {
+      this.scroll = null;
+      return;
+    }
+    this.scroll = v2_1
+      .overlayScrollbars({
+        className: "os-theme-light",
+        overflowBehavior: {
+          x: "hidden",
+        },
+      })
+      .overlayScrollbars();
+    this.scroll.addExt("fmExtension");
+  }
+  sortedFriends() {
+    function v2_0(v3_0) {
+      if (v3_0 == "online" || v3_0 == "busy") {
+        return 0;
+      } else {
+        return 1;
+      }
+    }
+    return this.friends.slice().sort(function (v3_0, v3_1) {
+      var v3_2 = v2_0(v3_0.status) - v2_0(v3_1.status);
+      if (v3_2 !== 0) {
+        return v3_2;
+      }
+      return String(v3_0.username).localeCompare(String(v3_1.username), undefined, {
+        sensitivity: "base",
+      });
+    });
+  }
+  renderFriends() {
+    var v2_0 = this.content.find(".friendList");
+    if (v2_0.length === 0) {
+      return;
+    }
+    v2_0.empty();
+    var v2_1 = this;
+    this.rendering = true;
+    try {
+      $.each(this.sortedFriends(), function (v4_0, v4_1) {
+        v2_1.createFriend(v4_1.uid, v4_1.username, v4_1.status, v4_1.badges);
+      });
+    } finally {
+      this.rendering = false;
+    }
+  }
+  renderRequests() {
+    var v2_0 = this.content.find(".friendRequestList");
+    var v2_1 = this.content.find(".friendSentList");
+    if (v2_0.length === 0 && v2_1.length === 0) {
+      return;
+    }
+    v2_0.empty();
+    v2_1.empty();
+    var v2_2 = this;
+    $.each(this.requests, function (v3_0, v3_1) {
+      v2_2.createRequest(v3_1.uid, v3_1.username, v3_1.expires, v3_1.badges);
+    });
+    $.each(this.sent, function (v3_0, v3_1) {
+      v2_2.createSent(v3_1.uid, v3_1.username, v3_1.expires, v3_1.badges);
+    });
   }
   requestList() {
     this.loading(true);
@@ -42196,22 +43441,12 @@ class v0_9 extends Dialog {
     var v2_1 = v2_0.friends || [];
     var v2_2 = v2_0.requests || [];
     var v2_3 = v2_0.sent || [];
-    this.setPresence(v2_0.presence);
-    this.content.find(".friendList").empty();
-    this.content.find(".friendRequestList").empty();
-    this.content.find(".friendSentList").empty();
-    var v2_4 = this;
-    $.each(v2_2, function (v3_0, v3_1) {
-      v2_4.createRequest(v3_1.uid, v3_1.username, v3_1.expires, v3_1.badges);
-    });
-    $.each(v2_3, function (v3_0, v3_1) {
-      v2_4.createSent(v3_1.uid, v3_1.username, v3_1.expires, v3_1.badges);
-    });
-    $.each(v2_1, function (v3_0, v3_1) {
-      v2_4.createFriend(v3_1.uid, v3_1.username, v3_1.status, v3_1.badges);
-    });
+    this.presence = v2_0.presence || this.presence;
+    this.friends = v2_1;
+    this.requests = v2_2;
+    this.sent = v2_3;
     this.setPendingRequests(v2_2.length);
-    this.refresh();
+    this.loadPage(this.page);
     this.loading(false);
   }
   friendNameHtml(v2_0, v2_1) {
@@ -42231,9 +43466,9 @@ class v0_9 extends Dialog {
         this.friendNameHtml(v2_1, v2_3) +
         '<span class="friendActions"><a href="#" name="message" class="btn btn-success btn-xs me-1" title="' +
         textManager.getString("friends.btnMessage", null, false) +
-        '"><i class="fas fa-envelope"></i></a><a href="#" name="gallery" class="btn btn-primary btn-xs me-1" title="' +
-        textManager.getString("friends.btnGallery", null, false) +
-        '"><i class="fas fa-images"></i></a><a href="#" name="remove" class="btn btn-danger btn-xs" title="' +
+        '"><i class="fas fa-envelope"></i></a><a href="#" name="profile" class="btn btn-primary btn-xs me-1" title="' +
+        textManager.getString("menu.userList.Prf", null, false) +
+        '"><i class="fas fa-id-card"></i></a><a href="#" name="remove" class="btn btn-danger btn-xs" title="' +
         textManager.getString("friends.btnRemove", null, false) +
         '"><i class="fas fa-user-minus"></i></a></span>',
     );
@@ -42288,42 +43523,66 @@ class v0_9 extends Dialog {
     this.content.find(".friendSentList").append(v2_4);
   }
   removeSentRow(v2_0) {
+    this.sent = this.sent.filter(function (v3_0) {
+      return Number(v3_0.uid) !== Number(v2_0);
+    });
     this.content.find('.friendSentRow[data-uid="' + v2_0 + '"]').remove();
     this.refresh();
   }
   updatePresence(v2_0, v2_1) {
-    var v2_2 = this.content.find('.friendRow[data-uid="' + v2_0 + '"]');
-    if (v2_2.length == 0) {
+    var v2_2 = false;
+    this.friends.forEach(function (v3_0) {
+      if (Number(v3_0.uid) === Number(v2_0) && v3_0.status !== v2_1) {
+        v3_0.status = v2_1;
+        v2_2 = true;
+      }
+    });
+    var v2_3 = this.content.find('.friendRow[data-uid="' + v2_0 + '"]');
+    if (v2_3.length == 0) {
       return;
     }
-    v2_2.attr("data-status", v2_1);
-    var v2_3 = v2_2.find('span[name="presence"]');
-    v2_3.removeClass("presenceOnline presenceBusy presenceOffline");
-    if (v2_1 == "online") {
-      v2_3.addClass("presenceOnline");
-    } else if (v2_1 == "busy") {
-      v2_3.addClass("presenceBusy");
-    } else {
-      v2_3.addClass("presenceOffline");
+    if (v2_2 && !this.rendering) {
+      this.renderFriends();
+      return;
     }
-    v2_3.attr("title", textManager.getString("friends.presence." + v2_1, null, false));
+    v2_3.attr("data-status", v2_1);
+    var v2_4 = v2_3.find('span[name="presence"]');
+    v2_4.removeClass("presenceOnline presenceBusy presenceOffline");
+    if (v2_1 == "online") {
+      v2_4.addClass("presenceOnline");
+    } else if (v2_1 == "busy") {
+      v2_4.addClass("presenceBusy");
+    } else {
+      v2_4.addClass("presenceOffline");
+    }
+    v2_4.attr("title", textManager.getString("friends.presence." + v2_1, null, false));
   }
   removeFriendRow(v2_0) {
+    this.friends = this.friends.filter(function (v3_0) {
+      return Number(v3_0.uid) !== Number(v2_0);
+    });
     this.content.find('.friendRow[data-uid="' + v2_0 + '"]').remove();
     this.refresh();
   }
   removeRequestRow(v2_0) {
+    this.requests = this.requests.filter(function (v3_0) {
+      return Number(v3_0.uid) !== Number(v2_0);
+    });
     this.content.find('.friendRequestRow[data-uid="' + v2_0 + '"]').remove();
-    this.setPendingRequests(this.content.find(".friendRequestRow").length);
+    this.setPendingRequests(this.requests.length);
     this.refresh();
   }
   refresh() {
-    var v2_0 = this.content.find(".friendRequestRow").length > 0;
-    var v2_1 = this.content.find(".friendSentRow").length > 0;
-    var v2_2 = this.content.find(".friendRow").length > 0;
-    this.content.find(".friendRequests").toggle(v2_0);
-    this.content.find(".friendSent").toggle(v2_1);
-    this.content.find(".friendsEmpty").toggle(!v2_2);
+    this.content.find(".friendRequests").toggle(this.requests.length > 0);
+    this.content.find(".friendSent").toggle(this.sent.length > 0);
+    this.content
+      .find(".friendList")
+      .siblings(".friendsEmpty")
+      .toggle(this.friends.length === 0);
+    this.content
+      .find(".friendRequestsEmpty")
+      .toggle(this.requests.length === 0 && this.sent.length === 0);
+    this.updateRequestsBadge();
   }
   setPresence(v2_0) {
     this.presence = v2_0 || "online";
@@ -42341,6 +43600,7 @@ class v0_9 extends Dialog {
   }
   setPendingRequests(v2_0) {
     this.pendingRequests = v2_0;
+    this.updateRequestsBadge();
     $(this).triggerHandler(new unreadMessagesEvent(v2_0).getEvent());
   }
   requestSent(v2_0) {
@@ -42411,13 +43671,38 @@ class v0_9 extends Dialog {
     }
   }
   onShow() {
+    this.page = "friends";
+    this.loadPage("friends");
     this.changed();
     this.requestList();
   }
   onHide() {
+    this.friends = [];
+    this.requests = [];
+    this.sent = [];
     this.content.find(".friendList").empty();
     this.content.find(".friendRequestList").empty();
     this.content.find(".friendSentList").empty();
+  }
+  updateRequestsBadge() {
+    var v2_0 = this.form.find('.subcontentOption[data-subcontent="requests"]');
+    if (v2_0.length === 0) {
+      return;
+    }
+    var v2_1 = v2_0.find('.badge[name="counter"]');
+    if (this.pendingRequests > 0) {
+      if (v2_1.length > 0) {
+        v2_1.text(this.pendingRequests);
+      } else {
+        v2_0.append(
+          '<span class="badge badge-pill badge-danger" name="counter">' +
+            this.pendingRequests +
+            "</span>",
+        );
+      }
+    } else {
+      v2_1.remove();
+    }
   }
 }
 class GalleryImageDialog extends Dialog {
@@ -42580,7 +43865,7 @@ class GalleryImageDialog extends Dialog {
       v2_2.disableModal();
     });
     this.registerMoreMenu();
-    $.contextMenu({
+    UI.contextMenu.register({
       selector: 'button[name="visitImage"]',
       trigger: "left",
       build: function (v3_0) {
@@ -42776,9 +44061,9 @@ class GalleryImageDialog extends Dialog {
     var v2_0 = this;
     var v2_1 = '[name="galleryimage"] a[name="more"]';
     try {
-      $.contextMenu("destroy", v2_1);
+      UI.contextMenu.destroy(v2_1);
     } catch (v3_0) {}
-    $.contextMenu({
+    UI.contextMenu.register({
       selector: v2_1,
       trigger: "left",
       build: function (v3_0) {
@@ -42796,6 +44081,25 @@ class GalleryImageDialog extends Dialog {
             name: textManager.getString("galleryimage.btnEditTags", null, false),
             icon: "fa-tags",
           };
+        }
+        if (v2_0.showcase && v2_0.showcase.isOwner) {
+          if (v2_0.showcase.isShowcased) {
+            v3_1.showcaseremove = {
+              name: textManager.getString("galleryimage.btnShowcaseRemove", null, false),
+              icon: "fa-star",
+            };
+          } else if (v2_0.showcase.count >= v2_0.showcase.max) {
+            v3_1.showcasefull = {
+              name: textManager.getString("galleryimage.btnShowcaseFull", v2_0.showcase.max, false),
+              icon: "fa-star",
+              disabled: true,
+            };
+          } else {
+            v3_1.showcaseadd = {
+              name: textManager.getString("galleryimage.btnShowcaseAdd", null, false),
+              icon: "fa-star",
+            };
+          }
         }
         v3_1.report = {
           name: textManager.getString("galleryimage.btnReport", null, false),
@@ -42817,6 +44121,10 @@ class GalleryImageDialog extends Dialog {
               UI.reportDialog.showForPost(v2_0.imageId);
             } else if (v4_0 == "deletepost") {
               v2_0.confirmDelete();
+            } else if (v4_0 == "showcaseadd") {
+              v2_0.sendShowcase("add");
+            } else if (v4_0 == "showcaseremove") {
+              v2_0.sendShowcase("remove");
             }
           },
           items: v3_1,
@@ -43051,6 +44359,7 @@ class GalleryImageDialog extends Dialog {
   gotResponse(v2_0) {
     var v2_1 = this;
     this.imageOwner = v2_0.owner;
+    this.showcase = v2_0.showcase || null;
     this.tags = v2_0.image.tags;
     this.imageViewer.loadImage(v2_0.image.url);
     this.loading(false);
@@ -43063,7 +44372,7 @@ class GalleryImageDialog extends Dialog {
     var v2_2 = v2_0.reactions || {};
     let v2_3 = 0;
     $.each(v2_0.image.comments, function (v3_0, v3_1) {
-      var v3_2 = v3_1.message.replace(/\[\/?(?:b|i|u|url|quote|code|img|color|size)*?.*?\]/gim, "");
+      var v3_2 = stripBBCode(v3_1.message);
       v3_2 = nl2br(parseURL(escapeHTML(v3_2)));
       v3_1.message = v3_2;
       v2_1.addComment(v3_1, v2_2[v3_1.id]);
@@ -43084,6 +44393,40 @@ class GalleryImageDialog extends Dialog {
     this.registerMoreMenu();
     this.setupInterface(room.myself.isLogged());
     this.gotUpdated(v2_0);
+  }
+  sendShowcase(v2_0) {
+    if (!this.imageId) {
+      return;
+    }
+    var v2_1 = {
+      command: "GALLERYSET",
+      action: "Showcase",
+      perform: v2_0,
+      image: this.imageId,
+    };
+    socket.send(v2_1, true);
+  }
+  showcaseChanged(v2_0) {
+    if (!this.showcase || String(v2_0.image) !== String(this.imageId)) {
+      return;
+    }
+    if (v2_0.code === "FULL") {
+      UI.dialogHandler.showAlert(
+        textManager.getString("galleryimage.lblShowcaseFull", v2_0.max, false),
+      );
+      return;
+    }
+    if (v2_0.code !== "OK") {
+      return;
+    }
+    this.showcase.isShowcased = !!v2_0.isShowcased;
+    if (typeof v2_0.count === "number") {
+      this.showcase.count = v2_0.count;
+    }
+    if (typeof v2_0.max === "number") {
+      this.showcase.max = v2_0.max;
+    }
+    this.registerMoreMenu();
   }
 }
 class v0_10 extends Dialog {
@@ -43174,10 +44517,26 @@ class v0_11 extends Dialog {
     this.requestUserThumbnail(v2_0);
     this.updateMyCanvasPreview();
   }
+  styleCanvasBox(v2_0) {
+    if (!v2_0 || !v2_0.length) {
+      return;
+    }
+    v2_0.css("background-color", room.board.displayBackgroundColor);
+    var v2_1 = v2_0[0];
+    var v2_2 = room && room.board ? room.board.canvasWidth : 0;
+    var v2_3 = room && room.board ? room.board.canvasHeight : 0;
+    if (v2_2 > 0 && v2_3 > 0) {
+      v2_1.style.setProperty("--sync-canvas-w", String(v2_2));
+      v2_1.style.setProperty("--sync-canvas-h", String(v2_3));
+    } else {
+      v2_1.style.removeProperty("--sync-canvas-w");
+      v2_1.style.removeProperty("--sync-canvas-h");
+    }
+  }
   updateTargetUserPreview() {
     var v2_0 = this.content.find("#targetUserPreview");
     v2_0.empty();
-    v2_0.css("background-color", room.backgroundColor);
+    this.styleCanvasBox(v2_0);
     if (!this.targetUsername || !room.userExists(this.targetUsername)) {
       return;
     }
@@ -43192,7 +44551,7 @@ class v0_11 extends Dialog {
   updateMyCanvasPreview() {
     var v2_0 = this.content.find("#myCanvasPreview");
     v2_0.empty();
-    v2_0.css("background-color", room.backgroundColor);
+    this.styleCanvasBox(v2_0);
     var v2_1 = UI.getThumbnail();
     for (var v2_2 = v2_1.length - 1; v2_2 >= 0; v2_2--) {
       var v2_3 = $('<img class="syncLayerThumb">');
@@ -43227,7 +44586,7 @@ class v0_11 extends Dialog {
     }
     var v2_2 = this.content.find("#targetUserPreview");
     v2_2.empty();
-    v2_2.css("background-color", room.backgroundColor);
+    this.styleCanvasBox(v2_2);
     if (!v2_0 || !Array.isArray(v2_0) || v2_0.length === 0) {
       v2_2.append($("<p>").text(textManager.getString("syncdialog.lblNoThumbnails", null, false)));
       return;
@@ -43509,8 +44868,8 @@ class AdminConsoleDialog extends Dialog {
   eventList(v2_0) {
     this.eventsSubDialog.data(v2_0);
   }
-  accountInfo(v2_0, v2_1) {
-    this.usersSubDialog.data(v2_0, v2_1);
+  accountInfo(v2_0, v2_1, v2_2, v2_3) {
+    this.usersSubDialog.data(v2_0, v2_1, v2_2, v2_3);
   }
   galleryData(v2_0, v2_1) {
     this.gallerySubDialog.data(v2_0, v2_1);
@@ -43803,12 +45162,17 @@ class AdminConsoleUsersSubDialog extends SubDialog {
     super(v2_0, v2_1);
     this.table;
     this.tableRooms;
+    this.accountUid = null;
+    this.accountUsername = null;
+    this.accountEmail = null;
   }
   load() {
     this.dialog.loading(true);
     this.subContent.html(this.dialog.loadFile("forms/adminconsole.users.html"));
     this.subContent.find('a[name="changePass"]').addClass("disabled");
+    this.subContent.find('a[name="changeEmail"]').addClass("disabled");
     this.subContent.find('a[name="toggleEnable"]').addClass("disabled");
+    this.subContent.find('a[name="viewProfile"]').addClass("disabled");
     this.table = new Table(
       this.subContent.find("#adminAccountsTable"),
       null,
@@ -43882,6 +45246,53 @@ class AdminConsoleUsersSubDialog extends SubDialog {
         socket.send(v3_1, true);
       },
     );
+    this.subContent
+      .find('a[name="changeEmail"]')
+      .on(UI.pointerEvent("click", "adminSubdialog"), function (v3_0) {
+        v3_0.preventDefault();
+        v2_0.dialog.enableModal(v2_0.dialog.loadFile("forms/adminconsole.modal.changeemail.html"));
+        v2_0.dialog.modal
+          .find('input[name="newemail"]')
+          .val(v2_0.accountEmail || "")
+          .focus();
+      });
+    this.dialog.modal.on("change.adminSubdialog", 'input[name="markVerified"]', function () {
+      var v3_0 = $(this).is(":checked");
+      v2_0.dialog.modal
+        .find('input[name="requireVerification"]')
+        .prop("disabled", v3_0)
+        .prop("checked", false);
+    });
+    this.dialog.modal.on(
+      UI.pointerEvent("click", "adminSubdialog"),
+      'a[name="applyEmailChange"]',
+      function (v3_0) {
+        v3_0.preventDefault();
+        v2_0.dialog.loading(true);
+        var v3_1 = {
+          command: "ADMINSET",
+          action: "AdminAccounts",
+          option: "ChangeEmail",
+        };
+        v3_1.username = v2_0.subContent.find('input[name="search"]').val();
+        v3_1.email = v2_0.dialog.modal.find('input[name="newemail"]').val();
+        v3_1.verified = v2_0.dialog.modal.find('input[name="markVerified"]').is(":checked");
+        v3_1.needsverification = v2_0.dialog.modal
+          .find('input[name="requireVerification"]')
+          .is(":checked");
+        socket.send(v3_1, true);
+      },
+    );
+    this.subContent
+      .find('a[name="viewProfile"]')
+      .on(UI.pointerEvent("click", "adminSubdialog"), function (v3_0) {
+        v3_0.preventDefault();
+        if (!v2_0.accountUid) {
+          return;
+        }
+        UI.userProfileDialog.loadProfile(v2_0.accountUid, v2_0.accountUsername);
+        UI.userProfileDialog.show();
+      });
     this.dialog.loading(false);
   }
   searchAccount(v2_0) {
@@ -43897,21 +45308,26 @@ class AdminConsoleUsersSubDialog extends SubDialog {
     this.dialog.modal.off(".adminSubdialog");
     this.table.reset();
   }
-  data(v2_0, v2_1) {
+  data(v2_0, v2_1, v2_2, v2_3) {
+    this.accountUid = v2_2 || null;
+    this.accountUsername = v2_3 || null;
+    this.accountEmail = v2_0 && v2_0["E-Mail"] && v2_0["E-Mail"] !== "(none)" ? v2_0["E-Mail"] : "";
     this.table.clear();
     this.tableRooms.clear();
-    var v2_2 = this;
+    var v2_4 = this;
     $.each(v2_0, function (v3_0, v3_1) {
-      v2_2.table.addRow([v3_0, v3_1], false);
+      v2_4.table.addRow([v3_0, v3_1], false);
     });
     $.each(v2_1, function (v3_0, v3_1) {
-      v2_2.tableRooms.addRow([v3_1], false);
+      v2_4.tableRooms.addRow([v3_1], false);
     });
     this.dialog.changed();
     this.table.updated();
     this.tableRooms.updated();
     this.subContent.find('a[name="changePass"]').removeClass("disabled");
+    this.subContent.find('a[name="changeEmail"]').removeClass("disabled");
     this.subContent.find('a[name="toggleEnable"]').removeClass("disabled");
+    this.subContent.find('a[name="viewProfile"]').toggleClass("disabled", !this.accountUid);
     this.dialog.loading(false);
   }
   gotResponse(v2_0) {
@@ -43930,6 +45346,19 @@ class AdminConsoleUsersSubDialog extends SubDialog {
         UI.dialogHandler.showAlert("Error: " + v2_0.code);
       }
       this.dialog.loading(false);
+    } else if (v2_0.option == "ChangeEmail") {
+      if (v2_0.code == "OK") {
+        var v2_1 = "E-mail changed.";
+        if (v2_0.shared > 0) {
+          v2_1 += " Careful: " + v2_0.shared + " other account(s) already use this address.";
+        }
+        UI.dialogHandler.showAlert(v2_1);
+        this.dialog.disableModal();
+        this.searchAccount(v2_0.username);
+      } else {
+        UI.dialogHandler.showAlert("Error: " + v2_0.code);
+        this.dialog.loading(false);
+      }
     }
   }
 }
@@ -44064,7 +45493,7 @@ class AdminConsoleClientsSubDialog extends SubDialog {
       },
       true,
     );
-    $.contextMenu({
+    UI.contextMenu.register({
       selector: "#clientsTable tr",
       build: function (v3_0) {
         var v3_1 = {
@@ -44239,11 +45668,14 @@ class AdminConsoleBansSubDialog extends SubDialog {
     super(v2_0, v2_1);
     this.table;
     this.bantypeCheckbox;
+    this.bans = {};
+    this.editing = null;
   }
   load() {
     this.dialog.loading(true);
     this.subContent.html(this.dialog.loadFile("forms/adminconsole.bans.html"));
     this.subContent.find('a[name="removeServerBan"]').addClass("disabled");
+    this.subContent.find('a[name="editServerBan"]').addClass("disabled");
     this.table = new Table(this.subContent.find("#adminBansTable"), null, "bansTable", "fmTable");
     this.table.setFilterable(true);
     this.table.setTitle("Active Bans");
@@ -44305,12 +45737,85 @@ class AdminConsoleBansSubDialog extends SubDialog {
         v3_2.ip = v3_1;
         v3_2.ghost = v2_0.bantypeCheckbox.checked;
         v3_2.expires = v2_0.dialog.modal.find('select[name="banLength"]').val();
+        v3_2.reason = v2_0.dialog.modal.find('textarea[name="reason"]').val();
+        v3_2.publicreason = v2_0.dialog.modal.find('textarea[name="publicreason"]').val();
         socket.send(v3_2, true);
         v2_0.dialog.loading(true);
       } else {
         UI.dialogHandler.showAlert(textManager.getString("alerts.txtInvalidIP"));
       }
     });
+    this.subContent
+      .find('a[name="editServerBan"]')
+      .on(UI.pointerEvent("click", "adminSubdialog"), function (v3_0) {
+        v3_0.preventDefault();
+        var v3_1 = v2_0.table.getSelected();
+        if (!v3_1.length) {
+          return;
+        }
+        var v3_2 = v2_0.bans[v3_1[0].ID];
+        if (!v3_2) {
+          return;
+        }
+        v2_0.editing = v3_2.id;
+        v2_0.dialog.enableModal(v2_0.dialog.loadFile("forms/adminconsole.modal.editban.html"));
+        v2_0.bantypeCheckbox = new Switch(v2_0.dialog.modal.find('div[name="banType"]'), function (
+          v4_0,
+        ) {
+          if (v4_0) {
+            return "Shadowban";
+          } else {
+            return "Serverban";
+          }
+        });
+        v2_0.bantypeCheckbox.setValue(v3_2.type == 1, true);
+        v2_0.dialog.modal.find('input[name="address"]').val(v3_2.ip).focus();
+        v2_0.dialog.modal.find('input[name="comment"]').val(v3_2.username || "");
+        v2_0.dialog.modal.find('textarea[name="reason"]').val(v3_2.reason || "");
+        v2_0.dialog.modal.find('textarea[name="publicreason"]').val(v3_2.publicreason || "");
+        var v3_3 = v2_0.dialog.modal.find('select[name="banLength"]');
+        v3_3.empty();
+        v3_3.append(new Option("Keep current", ""));
+        $.each(v2_0.dialog.banLengths, function (v4_0, v4_1) {
+          v3_3.append(new Option(v4_1, v4_0));
+        });
+        v3_3.val("");
+        v2_0.dialog.modal
+          .find(".banCurrentExpiry")
+          .html(
+            v3_2.expires == 0
+              ? "Currently permanent"
+              : "Currently ends " + formatTimestamp(v3_2.expires),
+          );
+        textManager.updateElement(v2_0.dialog.modal);
+      });
+    this.dialog.modal.on(
+      UI.pointerEvent("click", "adminSubdialog"),
+      "#applyBanEdit",
+      function (v3_0) {
+        v3_0.preventDefault();
+        var v3_1 = v2_0.dialog.modal.find('input[name="address"]').val();
+        if (!isValidIP(v3_1)) {
+          UI.dialogHandler.showAlert(textManager.getString("alerts.txtInvalidIP"));
+          return;
+        }
+        var v3_2 = {
+          command: "ADMINSET",
+          action: "AdminBans",
+          option: "IPServBan",
+          perform: "update",
+          id: v2_0.editing,
+          ip: v3_1,
+        };
+        v3_2.comment = v2_0.dialog.modal.find('input[name="comment"]').val();
+        v3_2.ghost = v2_0.bantypeCheckbox.checked;
+        v3_2.expires = v2_0.dialog.modal.find('select[name="banLength"]').val();
+        v3_2.reason = v2_0.dialog.modal.find('textarea[name="reason"]').val();
+        v3_2.publicreason = v2_0.dialog.modal.find('textarea[name="publicreason"]').val();
+        socket.send(v3_2, true);
+        v2_0.dialog.loading(true);
+      },
+    );
     socket.send(
       {
         command: "ADMINGET",
@@ -44325,8 +45830,10 @@ class AdminConsoleBansSubDialog extends SubDialog {
   }
   data(v2_0) {
     this.table.clear();
+    this.bans = {};
     var v2_1 = this;
     $.each(v2_0, function (v3_0, v3_1) {
+      v2_1.bans[v3_1.id] = v3_1;
       v2_1.addBanRow(
         v3_1.id,
         v3_1.ip,
@@ -44344,6 +45851,7 @@ class AdminConsoleBansSubDialog extends SubDialog {
       "tableRowSelected.adminSubdialog tableRowUnselected.adminSubdialog",
       function (v3_0) {
         v2_1.subContent.find('a[name="removeServerBan"]').removeClass("disabled");
+        v2_1.subContent.find('a[name="editServerBan"]').removeClass("disabled");
       },
     );
     this.dialog.loading(false);
@@ -44360,6 +45868,18 @@ class AdminConsoleBansSubDialog extends SubDialog {
     if (v2_0.option == "IPSba") {
       if (v2_0.code == "OK") {
         this.dialog.disableModal();
+        this.bans[v2_0.ban.id] = {
+          id: v2_0.ban.id,
+          ip: v2_0.ban.ip,
+          username: v2_0.ban.comment,
+          reason: v2_0.ban.reason,
+          publicreason: v2_0.ban.publicreason,
+          expires: v2_0.ban.expires,
+          type: v2_0.ban.ghost ? 1 : 0,
+          staffuid: v2_0.ban.staffuid,
+          staffname: v2_0.ban.staffname,
+          staffrank: v2_0.ban.staffrank,
+        };
         var v2_1 = this.addBanRow(
           v2_0.ban.id,
           v2_0.ban.ip,
@@ -44372,6 +45892,25 @@ class AdminConsoleBansSubDialog extends SubDialog {
         );
         var v2_1 = this.table.find(this.table.getColumnId("ID"), v2_0.ban.id);
         if (v2_1 != null) {
+          this.table.locate(v2_1);
+        }
+      } else {
+        UI.dialogHandler.showAlert("Error: " + v2_0.code);
+      }
+      this.table.updated();
+      this.dialog.loading(false);
+    } else if (v2_0.option == "IPSbu") {
+      if (v2_0.code == "OK") {
+        this.dialog.disableModal();
+        this.bans[v2_0.ban.id] = v2_0.ban;
+        var v2_1 = this.table.find(this.table.getColumnId("ID"), v2_0.ban.id);
+        if (v2_1 != null) {
+          this.table.updateRow(v2_1, {
+            2: v2_0.ban.ip,
+            3: v2_0.ban.username,
+            4: v2_0.ban.type == 1 ? "Shadowban" : "Serverban",
+            5: v2_0.ban.expires == 0 ? "Never" : formatTimestamp(v2_0.ban.expires),
+          });
           this.table.locate(v2_1);
         }
       } else {
@@ -45019,6 +46558,13 @@ function rgb2hex(v1_0) {
   }
   return "#" + v1_1(v1_0[1]) + v1_1(v1_0[2]) + v1_1(v1_0[3]);
 }
+function toHexColor(v1_0) {
+  if (v1_0 && v1_0.indexOf("rgb") == 0) {
+    return rgb2hex(v1_0);
+  } else {
+    return v1_0;
+  }
+}
 function hex2rgb(v1_0) {
   if (v1_0.length == 4) {
     v1_0 = v1_0[1] + v1_0[1] + v1_0[2] + v1_0[2] + v1_0[3] + v1_0[3];
@@ -45546,33 +47092,33 @@ function processSizes(v1_0) {
     return v1_2;
   }
 }
-function formatHour(v1_0, v1_1 = true, v1_2 = true) {
-  var v1_3 = dateToObj(moment.unix(v1_0));
-  var v1_4 = [];
-  for (var v1_5 = 1; v1_5 <= 12; v1_5++) {
-    v1_4.push(textManager.getString("global.months." + v1_5, null, v1_2));
+function formatHour(v1_0, v1_1 = true, v1_2 = true, v1_3 = false) {
+  var v1_4 = dateToObj(moment.unix(v1_0));
+  var v1_5 = [];
+  for (var v1_6 = 1; v1_6 <= 12; v1_6++) {
+    v1_5.push(textManager.getString("global.months." + v1_6, null, v1_2));
   }
-  var v1_6 = v1_3.year;
-  var v1_7 = v1_4[parseInt(v1_3.month) - 1];
-  var v1_1 = parseInt(v1_3.day).toString();
-  var v1_8 = v1_3.hours;
-  var v1_9 = v1_3.minutes;
-  var v1_10 = v1_3.seconds;
-  var v1_11 = v1_8 + ":" + v1_9;
+  var v1_7 = v1_4.year;
+  var v1_8 = v1_5[parseInt(v1_4.month) - 1];
+  var v1_1 = parseInt(v1_4.day).toString();
+  var v1_9 = v1_4.hours;
+  var v1_10 = v1_4.minutes;
+  var v1_11 = v1_4.seconds;
+  var v1_12 = v1_9 + ":" + v1_10;
   if (v1_1) {
-    var v1_12 = dateToObj(moment.unix(Date.now() / 1000));
-    var v1_13 = dateToObj(moment.unix(Date.now() / 1000 - 86400));
-    var v1_14 = "";
-    if (v1_12.year == v1_3.year && v1_12.month == v1_3.month && v1_12.day == v1_3.day) {
-      v1_14 = textManager.getString("global.days.today", null, v1_2);
-    } else if (v1_13.year == v1_3.year && v1_13.month == v1_3.month && v1_13.day == v1_3.day) {
-      v1_14 = textManager.getString("global.days.yesterday", null, v1_2);
+    var v1_13 = dateToObj(moment.unix(Date.now() / 1000));
+    var v1_14 = dateToObj(moment.unix(Date.now() / 1000 - 86400));
+    var v1_15 = "";
+    if (v1_13.year == v1_4.year && v1_13.month == v1_4.month && v1_13.day == v1_4.day) {
+      v1_15 = textManager.getString("global.days.today", null, v1_2);
+    } else if (v1_14.year == v1_4.year && v1_14.month == v1_4.month && v1_14.day == v1_4.day) {
+      v1_15 = textManager.getString("global.days.yesterday", null, v1_2);
     } else {
-      v1_14 = v1_1 + " " + v1_7 + " " + v1_6;
+      v1_15 = v1_1 + " " + v1_8 + " " + v1_7;
     }
-    v1_11 = v1_11 + " | " + v1_14;
+    v1_12 = v1_3 ? v1_15 + " " + v1_12 : v1_12 + " | " + v1_15;
   }
-  return v1_11;
+  return v1_12;
 }
 function formatTimestamp(v1_0, v1_1 = true) {
   var v1_2 = dateToObj(moment.unix(v1_0));
@@ -45721,6 +47267,12 @@ function loopValue(v1_0, v1_1) {
   } while (v1_0 > v1_1 || v1_0 < 0);
   return v1_0;
 }
+function stripBBCode(v1_0) {
+  if (typeof v1_0 !== "string") {
+    return v1_0;
+  }
+  return v1_0.replace(/\[\/?(?:b|i|u|url|quote|code|img|color|size)*?.*?\]/gim, "");
+}
 function parseURL(v1_0) {
   var v1_1 = /(https?:\/\/[^\s<]+)/g;
   return v1_0.replace(v1_1, function (v2_0) {
@@ -45789,6 +47341,44 @@ function rgba2rgb(v1_0, v1_1, v1_2, v1_3 = 1) {
   }
   return v1_4;
 }
+function isValidEmail(v1_0) {
+  if (!v1_0 || typeof v1_0 !== "string") {
+    return false;
+  }
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v1_0);
+}
+function copyToClipboard(v1_0) {
+  v1_0 = String(v1_0 === undefined || v1_0 === null ? "" : v1_0);
+  if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+    navigator.clipboard.writeText(v1_0).catch(function (v3_0) {
+      if (window.console && console.warn) {
+        console.warn("[FlockMod] clipboard.writeText failed, falling back:", v3_0);
+      }
+      copyToClipboardFallback(v1_0);
+    });
+    return;
+  }
+  copyToClipboardFallback(v1_0);
+}
+function copyToClipboardFallback(v1_0) {
+  var v1_1 = document.createElement("textarea");
+  v1_1.value = v1_0;
+  v1_1.setAttribute("readonly", "");
+  v1_1.style.position = "fixed";
+  v1_1.style.top = "-1000px";
+  v1_1.style.opacity = "0";
+  document.body.appendChild(v1_1);
+  try {
+    v1_1.select();
+    v1_1.setSelectionRange(0, v1_0.length);
+    document.execCommand("copy");
+  } catch (v2_0) {
+    if (window.console && console.warn) {
+      console.warn("[FlockMod] could not copy to the clipboard:", v2_0);
+    }
+  }
+  document.body.removeChild(v1_1);
+}
 function escapeHTML(v1_0) {
   if (typeof v1_0 === "string") {
     var v1_1 = {
@@ -45803,6 +47393,17 @@ function escapeHTML(v1_0) {
     });
   }
   return v1_0;
+}
+var IMAGE_DATA_URL_RE = /^data:image\/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
+function safeImageDataURL(v1_0) {
+  if (!v1_0 || typeof v1_0 !== "object" || typeof v1_0.data !== "string") {
+    return null;
+  }
+  if (IMAGE_DATA_URL_RE.test(v1_0.data)) {
+    return v1_0.data;
+  } else {
+    return null;
+  }
 }
 function unescapeHTML(v1_0) {
   return v1_0
@@ -47463,6 +49064,9 @@ class Board {
     this.backgroundColor = "#FFFFFF";
     this.bottomTransparency = true;
     this.boardContainer = v2_0;
+    this.overrideBackground = false;
+    this.overrideBackgroundColor = "#FFFFFF";
+    this.displayBackgroundColor = "#FFFFFF";
     this.grid;
     this.gridVisible = false;
     this.gridRows = 0;
@@ -47514,6 +49118,9 @@ class Board {
       this.changeRotation = this.changeRotationDefault;
     }
   }
+
+  // Helper method to check if undo history is enabled
+  // Helper method to check if undo history is enabled
 
   // Helper method to check if undo history is enabled
   // Helper method to check if undo history is enabled
@@ -48621,9 +50228,8 @@ class Board {
   }
   changeBackground(v2_0, v2_1 = false) {
     if (this.backgroundColor != v2_0 || v2_1) {
-      var v2_2 = this.backgroundColor;
       this.backgroundColor = v2_0;
-      $(this).triggerHandler(new backgroundColorChangedEvent(v2_0, v2_2).getEvent());
+      this.refreshDisplayBackground(v2_1);
     }
   }
   changeSize(v2_0, v2_1, v2_2 = false) {
@@ -49009,7 +50615,7 @@ class Board {
     v2_3.attr("height", 1);
     var v2_4 = v2_3[0].getContext("2d");
     if (!v2_2) {
-      v2_4.fillStyle = this.backgroundColor;
+      v2_4.fillStyle = this.displayBackgroundColor;
       v2_4.fillRect(0, 0, 1, 1);
     }
     for (var v2_5 = 0; v2_5 < this.nLayers; v2_5++) {
@@ -49037,6 +50643,21 @@ class Board {
   destroy() {
     this.cursorContainer.remove();
     this.canvasContainer.remove();
+  }
+  changeBackgroundOverride(v2_0, v2_1, v2_2 = false) {
+    if (this.overrideBackground != v2_0 || this.overrideBackgroundColor != v2_1 || v2_2) {
+      this.overrideBackground = v2_0;
+      this.overrideBackgroundColor = v2_1;
+      this.refreshDisplayBackground(v2_2);
+    }
+  }
+  refreshDisplayBackground(v2_0 = false) {
+    var v2_1 = this.overrideBackground ? this.overrideBackgroundColor : this.backgroundColor;
+    if (this.displayBackgroundColor != v2_1 || v2_0) {
+      var v2_2 = this.displayBackgroundColor;
+      this.displayBackgroundColor = v2_1;
+      $(this).triggerHandler(new backgroundColorChangedEvent(v2_1, v2_2).getEvent());
+    }
   }
 }
 class Cursor {
@@ -49070,6 +50691,9 @@ class Cursor {
       ) === "true";
 
     // Choose initial pointer style
+    if (typeof UI !== "undefined" && UI && UI.flipLabels) {
+      UI.flipLabels();
+    }
     if (csCursorEnabled && this.surface.isMyself) {
       if (typeof window.OWN_CURSOR_OPACITY !== "number") {
         window.OWN_CURSOR_OPACITY = 0.35;
@@ -50238,10 +51862,11 @@ class userRenamedEvent extends FMEvent {
   }
 }
 class userUnwantedEvent extends FMEvent {
-  constructor(v2_0) {
+  constructor(v2_0, v2_1 = "") {
     super();
     this.event = jQuery.Event("userUnwanted");
     this.event.reason = v2_0;
+    this.event.message = v2_1 || "";
   }
 }
 class animationFrameChangedEvent extends FMEvent {
@@ -50298,6 +51923,20 @@ class tagsChangedEvent extends FMEvent {
     this.event.tags = v2_0;
   }
 }
+class imageSelectedEvent extends FMEvent {
+  constructor(v2_0) {
+    super();
+    this.event = jQuery.Event("imageSelected");
+    this.event.imageId = v2_0;
+  }
+}
+class showcaseReorderedEvent extends FMEvent {
+  constructor(v2_0) {
+    super();
+    this.event = jQuery.Event("showcaseReordered");
+    this.event.ids = v2_0;
+  }
+}
 var bypassDenied101 = localStorage.getItem("bypassDenied101") === "true";
 class FrameBuffer {
   constructor(v2_0) {
@@ -50351,9 +51990,6 @@ class FrameBuffer {
   bindEvents() {
     var v2_0 = this;
     $(this.user.surface).on("penDown", function (v3_0) {
-      v2_0.strokeLocal = 0;
-      v2_0.strokeQueued = 0;
-      v2_0.strokeStart = Date.now();
       if (!v2_0.isAlone) {
         v2_0.outBuffer(v2_0.netcode.penDown(v3_0));
       }
@@ -50362,10 +51998,8 @@ class FrameBuffer {
       if (!v2_0.isAlone) {
         v2_0.outBuffer(v2_0.netcode.penUp(v3_0));
       }
-      v2_0.reportStroke();
     });
     $(this.user.surface).on("penMove", function (v3_0) {
-      v2_0.strokeLocal = (v2_0.strokeLocal || 0) + 1;
       if (!v2_0.isAlone) {
         v2_0.outBuffer(v2_0.netcode.penMove(v3_0));
       }
@@ -50480,7 +52114,6 @@ class FrameBuffer {
     }
   }
   outBuffer(v2_0, sourceId = null, eventType = null) {
-    this.strokeQueued = (this.strokeQueued || 0) + 1;
     this.obuffer.push({
       data: v2_0,
       source: sourceId,
@@ -50490,32 +52123,6 @@ class FrameBuffer {
         (eventType && this.alwaysAuthorizedEvents.has(eventType)),
       timestamp: Date.now(),
     });
-  }
-  reportStroke() {
-    try {
-      if (!FrameBuffer.strokeCensus) {
-        return;
-      }
-      var v2_0 = this.strokeLocal || 0;
-      if (v2_0 < FrameBuffer.strokeCensusMin) {
-        return;
-      }
-      var v2_1 = {
-        command: "DIAG",
-        action: "STROKE",
-        local: v2_0,
-        queued: this.strokeQueued || 0,
-        obuffer: this.obuffer.length,
-      };
-      v2_1.ms = Date.now() - (this.strokeStart || Date.now());
-      if (typeof socket !== "undefined" && socket) {
-        v2_1.pending =
-          (socket.outBuffer ? socket.outBuffer.length : 0) +
-          (socket.outPending ? socket.outPending.length : 0);
-        v2_1.readyState = socket.ws ? socket.ws.readyState : null;
-        socket.send(v2_1, true);
-      }
-    } catch (v3_0) {}
   }
   pushNetCode(v2_0) {
     this.buffer.push(v2_0);
@@ -50576,35 +52183,11 @@ class FrameBuffer {
       } else {
         try {
           this.netcode.execFrame(v2_0);
-        } catch (v6_0) {
-          try {
-            if (typeof socket !== "undefined" && socket && socket.reportDrop) {
-              socket.reportDrop(
-                "execFrameThrew",
-                (v2_0 && v2_0.action) +
-                  " from " +
-                  (this.user ? this.user.username : "?") +
-                  ": " +
-                  (v6_0 && v6_0.message),
-              );
-            }
-          } catch (v7_0) {}
-        }
+        } catch (v6_0) {}
       }
     }
   }
 }
-FrameBuffer.strokeCensus = true;
-FrameBuffer.strokeCensusMin = 20;
-try {
-  if (localStorage.getItem("fmStrokeCensus") === "0") {
-    FrameBuffer.strokeCensus = false;
-  }
-  var v0_24 = parseInt(localStorage.getItem("fmStrokeCensusMin"), 10);
-  if (isFinite(v0_24) && v0_24 > 0) {
-    FrameBuffer.strokeCensusMin = v0_24;
-  }
-} catch (v1_0) {}
 class NetworkCode {
   constructor(v2_0) {
     this.user = v2_0;
@@ -50846,10 +52429,6 @@ class PenSurface {
     this.setCurrentLayer(0);
     this.drawColor = "#000000";
     this.stepFrom;
-    this.lastPenMoveAt = null;
-    this.lastSync = null;
-    this.artifactReports = 0;
-    this.artifactWindowAt = 0;
     this.cursor = new Cursor(this);
     this.cursor.hide();
     this.lastPenDown;
@@ -54804,19 +56383,9 @@ class PenSurface {
       if (!this.stepFrom || !isFinite(this.stepFrom.x) || !isFinite(this.stepFrom.y)) {
         this.stepFrom = v2_2;
       }
-      this.checkArtifact(this.stepFrom, v2_2);
       try {
         this.brushHandler.brush.drawStep(this.stepFrom, v2_2, this.drawColor);
-      } catch (v4_0) {
-        try {
-          if (typeof socket !== "undefined" && socket && socket.reportDrop) {
-            socket.reportDrop(
-              "drawStepThrew",
-              (this.brushHandler.currentBrush || "?") + ": " + (v4_0 && v4_0.message),
-            );
-          }
-        } catch (v5_0) {}
-      }
+      } catch (v4_0) {}
       this.stepFrom = new Point(v2_0, v2_1);
 
       // CUSTOM: Record stroke movement with full brush options ONLY if it's our own drawing
@@ -54852,78 +56421,8 @@ class PenSurface {
         });
       }
     }
-    this.lastPenMoveAt = Date.now();
     this.cursor.update(v2_0, v2_1, this.brushHandler.getOption("size"));
     $(this).triggerHandler(new penMoveEvent(v2_0, v2_1).getEvent());
-  }
-  checkArtifact(v2_0, v2_1) {
-    try {
-      if (this.isMyself || !PenSurface.artifactWatch) {
-        return;
-      }
-      if (!v2_0 || !v2_1 || !isFinite(v2_0.x) || !isFinite(v2_0.y)) {
-        return;
-      }
-      var v2_2 = v2_1.x - v2_0.x;
-      var v2_3 = v2_1.y - v2_0.y;
-      var v2_4 = Math.sqrt(v2_2 * v2_2 + v2_3 * v2_3);
-      if (v2_4 < PenSurface.artifactJump) {
-        return;
-      }
-      var v2_5 = Date.now();
-      if (v2_5 - this.artifactWindowAt > 60000) {
-        this.artifactWindowAt = v2_5;
-        this.artifactReports = 0;
-      }
-      if (this.artifactReports >= PenSurface.artifactMaxPerMinute) {
-        return;
-      }
-      this.artifactReports++;
-      var v2_6 = {
-        command: "DIAG",
-        action: "ARTIFACT",
-        of: this.user ? this.user.username : null,
-      };
-      v2_6.dist = Math.round(v2_4);
-      v2_6.from = {
-        x: v2_0.x,
-        y: v2_0.y,
-      };
-      v2_6.to = {
-        x: v2_1.x,
-        y: v2_1.y,
-      };
-      v2_6.dtMove = this.lastPenMoveAt ? v2_5 - this.lastPenMoveAt : null;
-      v2_6.brush = this.brushHandler ? this.brushHandler.currentBrush : null;
-      v2_6.layer = this.currentLayer;
-      v2_6.penPressed = this.penPressed;
-      v2_6.seen = PenSurface.artifactReportsTotal = (PenSurface.artifactReportsTotal || 0) + 1;
-      if (this.lastSync) {
-        v2_6.sync = {
-          ago: v2_5 - this.lastSync.at,
-          sent: this.lastSync.sent || null,
-          used: this.lastSync.used || null,
-          penPressed: this.lastSync.penPressed,
-          hadBrushSync: this.lastSync.hadBrushSync,
-        };
-      }
-      if (typeof socket !== "undefined" && socket) {
-        socket.send(v2_6, true);
-      }
-      if (window.console && console.warn) {
-        console.warn(
-          "[ArtifactWatch] " +
-            v2_6.dist +
-            "px segment drawn for " +
-            v2_6.of +
-            " after " +
-            v2_6.dtMove +
-            "ms" +
-            (v2_6.sync ? " (SYNC " + v2_6.sync.ago + "ms ago)" : ""),
-          v2_6,
-        );
-      }
-    } catch (v3_0) {}
   }
   penUp(v2_0, v2_1) {
     v2_0 = formatNumberMod(v2_0);
@@ -56322,19 +57821,6 @@ class PenSurface {
     this.slate.remove();
   }
 }
-PenSurface.artifactWatch = true;
-PenSurface.artifactJump = 150;
-PenSurface.artifactMaxPerMinute = 12;
-PenSurface.artifactReportsTotal = 0;
-try {
-  if (localStorage.getItem("fmArtifactWatch") === "0") {
-    PenSurface.artifactWatch = false;
-  }
-  var v0_25 = parseFloat(localStorage.getItem("fmArtifactJump"));
-  if (isFinite(v0_25) && v0_25 > 0) {
-    PenSurface.artifactJump = v0_25;
-  }
-} catch (v1_0) {}
 class Point {
   constructor(v2_0, v2_1) {
     this.x = v2_0;
@@ -56824,6 +58310,16 @@ class CmdPONG extends v0_26 {
     this.socket.pong(v2_0.ping);
   }
 }
+class CmdPING extends v0_26 {
+  execute(v2_0) {
+    var v2_1 = {
+      command: "PROTOCOL",
+      option: "PONG",
+      ping: v2_0.ping,
+    };
+    this.socket.send(v2_1, true);
+  }
+}
 class CmdSERVERCHANGE extends v0_26 {
   execute(v2_0) {
     this.socket.disconnect(true);
@@ -56859,8 +58355,9 @@ class CmdENTERED extends v0_26 {
       this.room.changeBackground(v2_0.background, true);
     }
     this.room.change(v2_0.room);
-    if (v2_0.usercount > 0 && !v2_0.isquickreconnect) {
+    if (this.UI.boardRoom !== null && this.UI.boardRoom !== v2_0.room) {
       this.room.board.clearLayers();
+      this.UI.boardRoom = null;
     }
     this.room.myself.changeMute(v2_0.you.muted);
     this.room.myself.changeSilence(v2_0.you.silenced);
@@ -56906,14 +58403,6 @@ class CmdJOINED extends v0_26 {
       v2_4.setAccount(v2_0.regusername, v2_0.uid);
     }
     this.room.addUser(v2_4, false, v2_0.isquickreconnect);
-    try {
-      if (this.socket && this.socket.reportDrop) {
-        this.socket.reportDrop(
-          "userJoined",
-          v2_0.username + " | lista ahora " + Object.keys(this.room.users || {}).length,
-        );
-      }
-    } catch (v3_0) {}
     this.UI.syncBrushes(v2_0.username);
   }
 }
@@ -56925,18 +58414,6 @@ class CmdYOULEFT extends v0_26 {
 class CmdLEFT extends v0_26 {
   execute(v2_0) {
     this.room.removeUser(v2_0.username, v2_0.reason);
-    try {
-      if (this.socket && this.socket.reportDrop) {
-        this.socket.reportDrop(
-          "userLeft",
-          v2_0.username +
-            " (" +
-            (v2_0.reason || "sin motivo") +
-            ") | lista ahora " +
-            Object.keys(this.room.users || {}).length,
-        );
-      }
-    } catch (v3_0) {}
   }
 }
 class CmdINTHEROOM extends v0_26 {
@@ -56964,39 +58441,18 @@ class CmdINTHEROOM extends v0_26 {
         }
         try {
           this.room.addUser(v3_5, true, v2_0.isquickreconnect);
-        } catch (v4_0) {
-          if (this.socket && this.socket.reportDrop) {
-            this.socket.reportDrop("addUserThrew", v3_1.username + ": " + (v4_0 && v4_0.message));
-          }
-        }
+        } catch (v4_0) {}
       }.bind(this),
     );
-    try {
-      var v2_1 = (v2_0.users || []).map(function (v4_0) {
-        return v4_0.username;
-      });
-      var v2_2 = Object.keys(this.room.users || {});
-      if (this.socket && this.socket.reportDrop) {
-        this.socket.reportDrop(
-          "rosterReceived",
-          "recibidos " +
-            v2_1.length +
-            " [" +
-            v2_1.slice(0, 8).join(",") +
-            "] | en sala " +
-            v2_2.length +
-            " [" +
-            v2_2.slice(0, 8).join(",") +
-            "]",
-        );
-      }
-    } catch (v3_0) {}
     this.UI.syncBrushes();
     if (v2_0.recommendedSync && !v2_0.isquickreconnect) {
       this.UI.recommendedSync(v2_0.recommendedSync);
     }
     if (v2_0.users.length == 0 || v2_0.isquickreconnect) {
       this.room.loading = false;
+      this.UI.setBoardAuthoritative(true);
+    } else {
+      this.UI.setBoardAuthoritative(false);
     }
   }
 }
@@ -57093,8 +58549,8 @@ class CmdYOURELOGGED extends v0_26 {
       this.UI.account.clearSession();
       this.UI.account.change(v2_0.afterusername);
     }
-    if (this.UI.profileDialog) {
-      this.UI.profileDialog.usernameChanged(v2_0.afterusername);
+    if (this.UI.editProfileDialog) {
+      this.UI.editProfileDialog.usernameChanged(v2_0.afterusername);
     }
     if (v2_0.privileges) {
       this.room.setPrivileges(v2_0.privileges);
@@ -57120,6 +58576,8 @@ class CmdDIRECT extends v0_26 {
       this.handlePartialNext(v2_0);
     } else if (v2_0.action == "NOTHANKS") {
       this.handleNoThanks(v2_0);
+    } else if (v2_0.action == "NOBOARD") {
+      this.handleNoBoard(v2_0);
     }
   }
   handleSync(v2_0) {
@@ -57140,24 +58598,6 @@ class CmdDIRECT extends v0_26 {
         v2_1.surface.modifiersDown = v2_0.modifiersDown;
         v2_1.surface.setBrushSync(v2_0.brushSync);
         v2_1.surface.stepFrom = this.syncStepFrom(v2_0, v2_1.surface);
-        v2_1.surface.lastSync = {
-          at: Date.now(),
-          sent:
-            v2_0.stepFrom && isFinite(v2_0.stepFrom.x) && isFinite(v2_0.stepFrom.y)
-              ? {
-                  x: v2_0.stepFrom.x,
-                  y: v2_0.stepFrom.y,
-                }
-              : null,
-          used: v2_1.surface.stepFrom
-            ? {
-                x: v2_1.surface.stepFrom.x,
-                y: v2_1.surface.stepFrom.y,
-              }
-            : null,
-          penPressed: v2_0.penPressed,
-          hadBrushSync: !!v2_0.brushSync,
-        };
       }
       if (v2_0.visible) {
         v2_1.surface.penShow();
@@ -57181,21 +58621,30 @@ class CmdDIRECT extends v0_26 {
     return v2_1.stepFrom;
   }
   handleGetBoard(v2_0) {
-    var v2_1 = new Transfer("DIRECT", v2_0.from, "sync", new Date().getTime(), true);
-    $(v2_1).on("transferStart transferChunkReady", sendChunk);
-    for (var v2_2 = 0; v2_2 < this.room.board.nLayers; v2_2++) {
-      v2_1.addData(
-        v2_2,
+    if (!this.UI.hasBoard()) {
+      var v2_1 = {
+        command: "DIRECT",
+        target: v2_0.from,
+        action: "NOBOARD",
+      };
+      this.socket.send(v2_1, true);
+      return;
+    }
+    var v2_2 = new Transfer("DIRECT", v2_0.from, "sync", new Date().getTime(), true);
+    $(v2_2).on("transferStart transferChunkReady", sendChunk);
+    for (var v2_3 = 0; v2_3 < this.room.board.nLayers; v2_3++) {
+      v2_2.addData(
+        v2_3,
         0,
         0,
         this.room.board.canvasWidth,
         this.room.board.canvasHeight,
         0,
-        btoa(this.room.board.getLayerData(v2_2)),
+        btoa(this.room.board.getLayerData(v2_3)),
       );
     }
-    v2_1.send();
-    this.room.addTransfer(v2_1);
+    v2_2.send();
+    this.room.addTransfer(v2_2);
   }
   handlePartial(v2_0) {
     if (this.UI.acceptingSync(v2_0.from)) {
@@ -57214,6 +58663,13 @@ class CmdDIRECT extends v0_26 {
         v3_1.nextPart();
       }
     });
+  }
+  handleNoBoard(v2_0) {
+    if (this.UI.firstSyncEnabled && this.UI.firstSyncUser == v2_0.from) {
+      $(this.UI).triggerHandler(new firstSyncEndedEvent(v2_0.from, true).getEvent());
+    } else if (this.UI.manualSync == v2_0.from) {
+      this.UI.manualSync = null;
+    }
   }
   handleNoThanks(v2_0) {
     $.each(this.room.transfers, function (v3_0, v3_1) {
@@ -57402,6 +58858,10 @@ class CmdUSERRESPONSE extends v0_26 {
     } else if (v2_0.option == "CHANGEEMAIL") {
       if (v2_0.code == "OK") {
         this.UI.profileDialog.emailChangeSent();
+      } else if (v2_0.code == "EMAILINUSE") {
+        this.UI.dialogHandler.showAlert(
+          this.textManager.getString("login.accountCreate.EMAILINUSE"),
+        );
       } else {
         this.UI.dialogHandler.showAlert(this.textManager.getString("alerts.txtEmailChangeFailed"));
       }
@@ -57611,6 +59071,13 @@ class CmdGALLERYRESPONSE extends v0_26 {
       this.UI.userGalleryDialog.setPopularTags(v2_0.popularTags);
       this.UI.userGalleryDialog.setFeaturedTags(v2_0.featuredTags);
       this.UI.userGalleryDialog.setFeaturedUsers(v2_0.featuredUsers);
+    } else if (v2_0.option == "Prf") {
+      this.UI.userProfileDialog.gotProfile(v2_0);
+    } else if (v2_0.option == "Pru") {
+      this.UI.userProfileDialog.gotUnavailable(v2_0);
+    } else if (v2_0.option == "Shc") {
+      this.UI.galleryImageDialog.showcaseChanged(v2_0);
+      this.UI.userProfileDialog.showcaseChanged(v2_0);
     } else if (
       v2_0.command == "GALLERYRESPONSE" &&
       v2_0.action == "User" &&
@@ -57618,6 +59085,7 @@ class CmdGALLERYRESPONSE extends v0_26 {
     ) {
       if (v2_0.code == "OK") {
         this.UI.userGalleryDialog.updateUserInfo(v2_0.targetUser);
+        this.UI.userProfileDialog.updateUserInfo(v2_0.targetUser);
       }
       this.UI.userGalleryDialog.enableFollowButton();
     } else if (
@@ -57662,7 +59130,7 @@ class CmdADMINRESPONSE extends v0_26 {
     } else if (v2_0.option == "Ael") {
       this.UI.adminConsoleDialog.eventList(v2_0.events);
     } else if (v2_0.option == "Aci") {
-      this.UI.adminConsoleDialog.accountInfo(v2_0.account, v2_0.rooms);
+      this.UI.adminConsoleDialog.accountInfo(v2_0.account, v2_0.rooms, v2_0.uid, v2_0.username);
     } else if (v2_0.option == "Agt") {
       this.UI.adminConsoleDialog.galleryData(v2_0.featuredUsers, v2_0.featuredTags);
     } else if (v2_0.option == "Cps") {
@@ -57698,6 +59166,21 @@ class CmdGLOBALALERT extends v0_26 {
     } else {
       this.UI.dialogHandler.showAlert(v2_0.text);
     }
+  }
+}
+class CmdBANNED extends v0_26 {
+  execute(v2_0) {
+    var v2_1 = v2_0.reason || "";
+    if (!v2_1) {
+      return;
+    }
+    if (v2_0.type == "shadow") {
+      this.UI.dialogHandler.showAlert(
+        new Icon("fa-exclamation-triangle").html() + " " + escapeHTML(v2_1),
+      );
+      return;
+    }
+    this.socket.banReason = v2_1;
   }
 }
 class CmdLOBBY extends v0_26 {
@@ -57776,11 +59259,11 @@ class CmdLOBBY extends v0_26 {
       );
       this.UI.loginDialog.roomPassword();
     } else if (v2_0.code == "ROOMBANNED") {
-      this.UI.dialogHandler.showAlert(
-        new Icon("fa-exclamation-triangle").html() +
-          " " +
-          v2_1.getString("alerts.roomEnter.txtYouAreBanned"),
-      );
+      var v2_3 = v2_1.getString("alerts.roomEnter.txtYouAreBanned");
+      if (v2_0.reason) {
+        v2_3 += '<br /><span class="smallDate">' + escapeHTML(v2_0.reason) + "</span>";
+      }
+      this.UI.dialogHandler.showAlert(new Icon("fa-exclamation-triangle").html() + " " + v2_3);
     } else if (v2_0.code == "REDIRECT") {
       this.socket.disconnect(true);
       this.cm.actionTarget = "JOINROOM";
@@ -57967,20 +59450,6 @@ class CmdBC extends v0_26 {
     if (v2_1) {
       v2_1.pushNetCode(v2_0);
     } else {
-      var v2_2 = [];
-      try {
-        v2_2 = Object.keys(this.room.users || {});
-      } catch (v4_0) {}
-      this.socket.reportDrop(
-        "noUserInRoom",
-        v2_0.from +
-          "/" +
-          v2_0.action +
-          " | lista(" +
-          v2_2.length +
-          "): " +
-          v2_2.slice(0, 8).join(","),
-      );
     }
   }
 }
@@ -57991,13 +59460,9 @@ class CmdBYE extends v0_26 {
 }
 class CmdFAILED extends v0_26 {
   execute(v2_0) {
-    console.warn("The server refused " + v2_0.source + (v2_0.option ? "." + v2_0.option : ""));
+    // mod: the server refuses stray broadcasts (e.g. brush settings re-sent around leaving a room);
+    // they are harmless, so no "That did not go through" popup or console warning
     this.UI.dialogHandler.clearLoading();
-    this.UI.dialogHandler.showAlert(
-      new Icon("fa-exclamation-triangle").html() +
-        " " +
-        this.textManager.getString("alerts.txtCommandFailed"),
-    );
   }
 }
 class v0_27 {
@@ -58025,13 +59490,11 @@ class v0_27 {
         }
         if (!v5_1) {
           console.warn("Unknown subcommand:", v5_0, v4_0);
-          this.socket.reportDrop("unknownSubcommand", v5_0);
           continue;
         }
         try {
           v5_1.execute(v4_0);
         } catch (v6_0) {
-          this.socket.reportDrop("threw", v5_0 + ": " + (v6_0 && v6_0.message));
           continue;
         }
       }
@@ -58049,7 +59512,6 @@ class v0_27 {
         v3_0.execute(v2_0);
         return true;
       } catch (v4_0) {
-        this.socket.reportDrop("threw", v2_1 + ": " + (v4_0 && v4_0.message));
         return false;
       }
     }
@@ -58061,6 +59523,7 @@ class v0_27 {
     this.register("FAIL", CmdFAIL);
     this.register("WELCOME", CmdWELCOME);
     this.register("PONG", CmdPONG);
+    this.register("PING", CmdPING);
     this.register("SERVERCHANGE", CmdSERVERCHANGE);
     this.register("FLAG", CmdFLAG);
     this.register("ENTERED", CmdENTERED);
@@ -58085,6 +59548,7 @@ class v0_27 {
     this.register("ADMINREQRESPONSE", CmdADMINREQRESPONSE);
     this.register("GLOBALMSG", CmdGLOBALMSG);
     this.register("GLOBALALERT", CmdGLOBALALERT);
+    this.register("BANNED", CmdBANNED);
     this.register("LOBBY", CmdLOBBY);
     this.register("MESSENGERNEW", CmdMESSENGERNEW);
     this.register("FRIENDNEW", CmdFRIENDNEW);
@@ -58205,9 +59669,21 @@ class Socket {
       v2_0.disconnect();
       $(v2_0).triggerHandler(new socketErrorEvent(v2_0.firstResponse).getEvent());
     };
-    this.ws.onclose = function () {
+    this.ws.onclose = function (v3_0) {
       clearInterval(v2_0.intervalPing);
+      var v3_1 = v3_0 ? v3_0.code : null;
       v2_0.disconnect();
+      try {
+        if (typeof room !== "undefined" && room && room.myself) {
+          if (v3_1 === 4000 || v3_1 === 4005) {
+            $(room.myself).triggerHandler(
+              new userUnwantedEvent("ban", v2_0.banReason || "").getEvent(),
+            );
+          } else if (v3_1 === 4004) {
+            $(room.myself).triggerHandler(new userUnwantedEvent("kick").getEvent());
+          }
+        }
+      } catch (v4_0) {}
     };
     this.ws.onmessage = function (v3_0) {
       v2_0.receive(v3_0);
@@ -58564,11 +60040,6 @@ class Socket {
     if (v2_2 === null) {
       this.droppedFrames = (this.droppedFrames || 0) + 1;
       console.error("Error parsing socket message: unreadable as rot13 or as plain text");
-      var v2_4 = typeof v2_0.data === "string" ? v2_0.data : "";
-      this.reportDrop(
-        "undecodable",
-        v2_4.length + "b " + (v2_4.startsWith("GZ:") ? "gz" : "plain"),
-      );
       return;
     }
     if (!v2_1.firstResponse) {
@@ -59040,44 +60511,6 @@ class Socket {
     }
     this.commandRegistry.execute(v2_2);
   }
-  reportDrop(v2_0, v2_1) {
-    try {
-      var v2_2 = Date.now();
-      if (!this.dropWindow || v2_2 - this.dropWindow > 60000) {
-        this.dropWindow = v2_2;
-        this.dropsThisWindow = 0;
-      }
-      this.dropsByReason = this.dropsByReason || {};
-      this.dropsByReason[v2_0] = (this.dropsByReason[v2_0] || 0) + 1;
-      if (window.console && console.warn) {
-        var v2_3 =
-          v2_0 !== "rosterReceived" &&
-          v2_0 !== "userJoined" &&
-          v2_0 !== "userLeft" &&
-          v2_0 !== "roomCleared";
-        console.warn(
-          "[FlockMod] " +
-            (v2_3 ? "Dropped an inbound frame: " : "Room membership: ") +
-            v2_0 +
-            " (" +
-            this.dropsByReason[v2_0] +
-            ") " +
-            v2_1,
-        );
-      }
-      if (++this.dropsThisWindow > 40) {
-        return;
-      }
-      var v2_4 = {
-        command: "DIAG",
-        action: "DROP",
-        reason: v2_0,
-      };
-      v2_4.detail = String(v2_1 === undefined ? "" : v2_1).slice(0, 300);
-      v2_4.total = this.dropsByReason[v2_0];
-      this.send(v2_4, true);
-    } catch (v3_0) {}
-  }
   execFrame() {
     if (this.ws.readyState !== this.ws.OPEN) {
       return;
@@ -59087,15 +60520,6 @@ class Socket {
       try {
         this.ws.send(v2_0);
       } catch (v5_0) {
-        this.reportDrop(
-          "sendThrew",
-          "readyState " +
-            this.ws.readyState +
-            ", " +
-            this.outBuffer.length +
-            " queued: " +
-            (v5_0 && v5_0.message),
-        );
         break;
       }
       this.outBuffer.shift();
@@ -59682,6 +61106,9 @@ class v0_39 extends v0_28 {
       case "pixelsmoothing":
         this.ui.togglePixelSmoothing();
         break;
+      case "backgroundoverride":
+        this.ui.toggleBackgroundOverride();
+        break;
       case "cancelstroke":
         this.surface.penCancel();
         break;
@@ -60039,12 +61466,13 @@ class UserInterface {
     this.userPreferences;
     this.clientId = v0_18(1, 999999);
     this.sessionId = null;
+    this.boardRoom = null;
     this.afterResume = null;
     this.uniqueID = null;
     this.clientName = "FlockMod";
     this.client = "FMH5C";
-    this.version = "13.5.7+0";
-    this.assetVersion = "1ea0101d";
+    this.version = "13.5.10+0";
+    this.assetVersion = "20afd97a";
     this.account = new Account("Anonymous");
     this.baseURL = "https://" + domain;
     this.baseDir = "/draw/";
@@ -60103,6 +61531,9 @@ class UserInterface {
     this.uploadMode = false;
     this.muteInterval = null;
     this.muteSeconds = 0;
+    this.muteAnimationId = null;
+    this.muteAnimationFPS = 1;
+    this.lastMuteUpdateTime = 0;
     this.topbar;
     this.bottombar;
     this.sidebar;
@@ -60124,6 +61555,7 @@ class UserInterface {
     this.brushGalleryDialog;
     this.debugDialog;
     this.profileDialog;
+    this.editProfileDialog;
     this.colorDialog;
     this.helpDialog;
     this.feedbackDialog;
@@ -60133,6 +61565,7 @@ class UserInterface {
     this.friendsDialog;
     this.galleryImageDialog;
     this.userGalleryDialog;
+    this.userProfileDialog;
     this.imageViewerDialog;
     this.syncDialog;
     this.shortcutManager;
@@ -60186,7 +61619,7 @@ class UserInterface {
   }
   buildContextMenu() {
     var v2_0 = this;
-    $.contextMenu({
+    this.contextMenu.register({
       selector: ".boardMenu",
       trigger: "none",
       build: function (v3_0) {
@@ -60372,6 +61805,7 @@ class UserInterface {
       this.mousePointer = new MousePointer($("body"));
       this.createShortcutManager();
       this.tooltips = new Tooltip(this.dialogHandler.container);
+      this.contextMenu = new ContextMenu($("body"));
       this.drawingArea.on("wheel", this.onWheelMove);
       this.initHammerGestures();
       this.buildContextMenu();
@@ -60453,6 +61887,9 @@ class UserInterface {
         v2_3.firstSyncUser = null;
         v2_3.firstSyncEnabled = false;
         room.loading = false;
+        if (!v4_0.failed) {
+          v2_3.setBoardAuthoritative(true);
+        }
         if (v4_0.failed) {
           v2_3.firstSyncFailed.push(v4_0.username);
           var v4_1 = false;
@@ -60461,6 +61898,7 @@ class UserInterface {
               if (!inArray(v7_1, v2_3.firstSyncFailed)) {
                 v2_3.syncBoard(v7_1, true);
                 v4_1 = true;
+                return false;
               }
             });
           }
@@ -61002,6 +62440,7 @@ class UserInterface {
     this.brushGalleryDialog = this.dialogHandler.createDialog("brushgallery");
     this.debugDialog = this.dialogHandler.createDialog("debug");
     this.profileDialog = this.dialogHandler.createDialog("profile");
+    this.editProfileDialog = this.dialogHandler.createDialog("editprofile");
     this.colorDialog = this.dialogHandler.createDialog("color");
     this.helpDialog = this.dialogHandler.createDialog("help");
     this.modsDialog = this.dialogHandler.createDialog("mods");
@@ -61013,6 +62452,7 @@ class UserInterface {
     this.friendsDialog = this.dialogHandler.createDialog("friends");
     this.galleryImageDialog = this.dialogHandler.createDialog("galleryimage");
     this.userGalleryDialog = this.dialogHandler.createDialog("usergallery");
+    this.userProfileDialog = this.dialogHandler.createDialog("userprofile");
     this.imageViewerDialog = this.dialogHandler.createDialog("imageviewer");
     this.syncDialog = this.dialogHandler.createDialog("sync");
     var v2_0 = this;
@@ -61200,12 +62640,6 @@ class UserInterface {
       v2_0.warnExit = false;
       v2_0.topbar.hideButton("chatButton");
       var v3_1 = Object.keys(room.users || {});
-      if (socket && socket.reportDrop) {
-        socket.reportDrop(
-          "roomCleared",
-          "quitando " + v3_1.length + " [" + v3_1.slice(0, 8).join(",") + "]",
-        );
-      }
       $.each(v3_1, function (v4_0, v4_1) {
         room.removeUser(v4_1);
       });
@@ -61416,12 +62850,11 @@ class UserInterface {
         socket.disconnect(true);
         socket = null;
         if (v3_0.reason == "ban") {
-          UI.hideScreen(
-            textManager.getString("alerts.txtYouHaveBeenBanned"),
-            false,
-            1,
-            "fa-radiation-alt",
-          );
+          var v4_0 = textManager.getString("alerts.txtYouHaveBeenBanned");
+          if (v3_0.message) {
+            v4_0 += '<br /><span class="smallDate">' + escapeHTML(v3_0.message) + "</span>";
+          }
+          UI.hideScreen(v4_0, false, 1, "fa-radiation-alt");
         } else if (v3_0.reason == "kick") {
           UI.hideScreen(
             textManager.getString("alerts.txtYouHaveBeenKicked"),
@@ -61530,12 +62963,6 @@ class UserInterface {
       v2_0.warnExit = false;
       v2_0.topbar.hideButton("chatButton");
       var v3_1 = Object.keys(room.users || {});
-      if (socket && socket.reportDrop) {
-        socket.reportDrop(
-          "roomCleared",
-          "quitando " + v3_1.length + " [" + v3_1.slice(0, 8).join(",") + "]",
-        );
-      }
       $.each(v3_1, function (v4_0, v4_1) {
         room.removeUser(v4_1);
       });
@@ -61746,12 +63173,11 @@ class UserInterface {
         socket.disconnect(true);
         socket = null;
         if (v3_0.reason == "ban") {
-          UI.hideScreen(
-            textManager.getString("alerts.txtYouHaveBeenBanned"),
-            false,
-            1,
-            "fa-radiation-alt",
-          );
+          var v4_0 = textManager.getString("alerts.txtYouHaveBeenBanned");
+          if (v3_0.message) {
+            v4_0 += '<br /><span class="smallDate">' + escapeHTML(v3_0.message) + "</span>";
+          }
+          UI.hideScreen(v4_0, false, 1, "fa-radiation-alt");
         } else if (v3_0.reason == "kick") {
           UI.hideScreen(
             textManager.getString("alerts.txtYouHaveBeenKicked"),
@@ -61999,7 +63425,7 @@ class UserInterface {
                       v3_3 / 2,
                       v3_3 / 2,
                       v3_3 / 2,
-                      room.board.backgroundColor,
+                      room.board.displayBackgroundColor,
                     );
                     v10_1 = rgba2rgb(v10_1[0], v10_1[1], v10_1[2], v10_1[3] / 255);
                     var v10_2 = "rgb(" + v10_1.r + "," + v10_1.g + "," + v10_1.b + ")";
@@ -62358,7 +63784,7 @@ class UserInterface {
             v2_0.mousePointer.position.y - v2_0.viewTop,
           );
         }
-        v2_0.pip.show(v2_0.getThumbnail(), room.board.backgroundColor);
+        v2_0.pip.show(v2_0.getThumbnail(), room.board.displayBackgroundColor);
       } else if (!v3_0.which || v3_0.which == 1) {
         v3_0.preventDefault();
         var v3_2;
@@ -62372,7 +63798,7 @@ class UserInterface {
               v2_0.mousePointer.position.y - v2_0.viewTop,
             );
           }
-          v2_0.pip.show(v2_0.getThumbnail(), room.board.backgroundColor);
+          v2_0.pip.show(v2_0.getThumbnail(), room.board.displayBackgroundColor);
         } else if (v3_2 == "rotate") {
           if (!v2_0.dragPoint) {
             v2_0.dragPoint = new Point(0, 0);
@@ -62565,7 +63991,7 @@ class UserInterface {
             v2_0.mousePointer.position.y - v2_0.viewTop,
           );
         }
-        v2_0.pip.show(v2_0.getThumbnail(), room.board.backgroundColor);
+        v2_0.pip.show(v2_0.getThumbnail(), room.board.displayBackgroundColor);
       } else if (!v3_0.which || v3_0.which == 1) {
         v3_0.preventDefault();
         var v3_2;
@@ -62579,7 +64005,7 @@ class UserInterface {
               v2_0.mousePointer.position.y - v2_0.viewTop,
             );
           }
-          v2_0.pip.show(v2_0.getThumbnail(), room.board.backgroundColor);
+          v2_0.pip.show(v2_0.getThumbnail(), room.board.displayBackgroundColor);
         } else if (v3_2 == "rotate") {
           if (!v2_0.dragPoint) {
             v2_0.dragPoint = new Point(0, 0);
@@ -62742,10 +64168,11 @@ class UserInterface {
       room.myself.surface.penCancel();
     } else if (v2_0 == "showmenu") {
       try {
-        $(".boardMenu").contextMenu({
-          x: this.mousePointer.position.x,
-          y: this.mousePointer.position.y,
-        });
+        this.contextMenu.open(
+          $(".boardMenu"),
+          this.mousePointer.position.x,
+          this.mousePointer.position.y,
+        );
       } catch (v4_0) {}
     } else if (v2_0 == "swapcolors") {
       this.sidebar.colorBox.swap();
@@ -63111,6 +64538,31 @@ class UserInterface {
         "px)",
     );
   }
+  keepCentreOnFlip(v2_0) {
+    if (this.flipX == v2_0 || !room || !room.board) {
+      return;
+    }
+    if (!this.drawingArea || this.drawingArea.length == 0) {
+      return;
+    }
+    var v2_1 = this.drawingArea.offset();
+    var v2_2 = this.drawingArea.width() / 2 + v2_1.left;
+    var v2_3 = this.drawingArea.height() / 2 + v2_1.top;
+    var v2_4 = this.screenToBoard(v2_2, v2_3);
+    if (!v2_4) {
+      return;
+    }
+    this.flipX = v2_0;
+    var v2_5 = this.calculateReverseRotation(
+      this.calculateFlipX(v2_4.x + this.viewOffset.x),
+      v2_4.y + this.viewOffset.y,
+      room.board.rotation,
+    );
+    this.moveBoard(
+      v2_2 - v2_1.left - v2_5.x * room.board.scale,
+      v2_3 - v2_1.top - v2_5.y * room.board.scale,
+    );
+  }
   flipViewEnabled(v2_0) {
     let x_converted =
       UI.viewWidth - (UI.drawingArea.offset().left - UI.viewLeft + UI.drawingArea.width());
@@ -63128,6 +64580,7 @@ class UserInterface {
     $(this).triggerHandler(new viewFlippedEvent(v2_0).getEvent());
   }
   flipViewDisabled(v2_0) {
+    this.keepCentreOnFlip(v2_0);
     this.flipLabels();
     if (v2_0) {
       this.bottombar.selectButton("flipXButton");
@@ -63627,6 +65080,21 @@ class UserInterface {
       this.bottombar.selectButton("toggleSmoothingButton");
     }
   }
+  applyBackgroundOverride() {
+    if (room) {
+      room.board.changeBackgroundOverride(
+        this.userPreferences.getGroupOption("graphics", "overridebackground", false),
+        toHexColor(this.userPreferences.getProperty("backgroundcolor", "#FFFFFF")),
+      );
+    }
+  }
+  toggleBackgroundOverride() {
+    var v2_0 = !this.userPreferences.getGroupOption("graphics", "overridebackground", false);
+    this.userPreferences.setGroupOptions("graphics", {
+      overridebackground: v2_0,
+    });
+    this.applyBackgroundOverride();
+  }
   fitToScreenModified() {
     if (!isStableConnection) {
       return;
@@ -64017,7 +65485,7 @@ class UserInterface {
   flipLabels() {
     room.board.cursorContainer
       .find(".pointerLabel")
-      .css("transform", "translateZ(0) scaleX(" + (this.flipX ? 1 : -1) + ")");
+      .css("transform", "translateZ(0) scaleX(" + (this.flipX ? -1 : 1) + ")");
   }
   syncBrushes(v2_0 = null) {
     if (room && room.myself) {
@@ -64160,6 +65628,7 @@ class UserInterface {
     this.colorDialog.colorBubbles.redraw();
     this.sidebar.presets.loadFromStorage();
     this.sidebar.presets.redraw();
+    this.applyBackgroundOverride();
   }
   preDrag(v2_0) {
     this.preDraggingMode = v2_0;
@@ -64204,6 +65673,23 @@ class UserInterface {
     if (v2_0 in room.users) {
       this.syncBoard(v2_0, true);
     }
+  }
+  hasBoard() {
+    return this.boardRoom !== null && this.boardRoom === room.name && !this.firstSyncEnabled;
+  }
+  setBoardAuthoritative(v2_0) {
+    this.boardRoom = v2_0 ? room.name : null;
+    this.declareSyncState(v2_0);
+  }
+  declareSyncState(v2_0) {
+    if (typeof socket == "undefined" || !socket || !this.inRoom) {
+      return;
+    }
+    var v2_1 = {
+      command: "SYNCSTATE",
+      synced: !!v2_0,
+    };
+    socket.send(v2_1, true);
   }
   acceptingSync(v2_0) {
     if (this.firstSyncEnabled && this.firstSyncUser == v2_0) {
@@ -65587,6 +67073,7 @@ function run() {
   UI.setup($("#content"));
   textManager.changeLocale(UI.userPreferences.getProperty("language", "en"));
   room = new Room(UI.boardContainer, "Lobby Browser", "L", 1, "1P");
+  UI.applyBackgroundOverride();
   var v1_1 = 30;
   var v1_2 = window.setInterval(
     function () {
