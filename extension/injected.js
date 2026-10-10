@@ -22,20 +22,24 @@ const STORAGE_KEY = 'mod_settings';
 
 const DEFAULT_SETTINGS = {
     serverConnection: false,
-    customTrollSound: true,
     customDefaultStyles: true,
     customCssEnabled: true,
     customCss: "",
-    syncPriorityList: []
+    syncPriorityList: [],
+    dTrollDetection: true,   // D's TrollMonitor (with its sound); wins over Zexium's "Detect Trolling" if both are on
+    trollSpeedLimit: 3000    // px/s for D's detector
 };
 
 function loadSettings() {
     try {
         const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            // Merge stored settings with defaults (handles future added fields)
-            return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+        const parsed = stored ? JSON.parse(stored) : {};
+        // The old "Custom troll sound" box became the on/off box for D's detector
+        if (parsed.dTrollDetection === undefined && parsed.customTrollSound !== undefined) {
+            parsed.dTrollDetection = !!parsed.customTrollSound;
         }
+        // Merge stored settings with defaults (handles future added fields)
+        return { ...DEFAULT_SETTINGS, ...parsed };
     } catch (e) {
         console.error("Error loading FlockMod settings:", e);
     }
@@ -880,8 +884,12 @@ function createModsDialogInjectClass() {
                             Connect to Mod Server
                         </label>
                         <label style="display: block; margin-bottom: 8px; cursor: pointer;">
-                            <input type="checkbox" name="custom-troll-sound" style="margin-right: 8px;">
-                            Custom troll sound
+                            <input type="checkbox" name="d-troll-detection" style="margin-right: 8px;">
+                            Troll Detection
+                        </label>
+                        <label class="troll-speed-row" style="display: block; margin-bottom: 8px; margin-left: 24px;">
+                            Speed limit:
+                            <input type="number" name="troll-speed-limit" min="500" max="50000" step="100" style="width: 80px; margin-left: 8px;"> px/s
                         </label>
                         <label style="display: block; margin-bottom: 8px; cursor: pointer;">
                             <input type="checkbox" name="custom-default-styles" style="margin-right: 8px;">
@@ -1004,8 +1012,15 @@ function createModsDialogInjectClass() {
                     this.content.find("input[name='server-connection']")
                     .prop("checked", !!window.modSettings.serverConnection);
 
-                    this.content.find("input[name='custom-troll-sound']")
-                    .prop("checked", !!window.modSettings.customTrollSound);
+                    this.content.find("input[name='d-troll-detection']")
+                    .prop("checked", window.modSettings.dTrollDetection !== false);
+                    this.content.find("input[name='troll-speed-limit']")
+                    .val(window.modSettings.trollSpeedLimit || 3000);
+                    // the speed limit only applies to D's detector
+                    const $detector = this.content.find("input[name='d-troll-detection']");
+                    const toggleSpeedRow = () => this.content.find(".troll-speed-row").toggle($detector.prop("checked"));
+                    $detector.off("change.troll").on("change.troll", toggleSpeedRow);
+                    toggleSpeedRow();
 
                     this.content.find("input[name='custom-css']")
                     .prop("checked", !!window.modSettings.customCssEnabled);
@@ -1019,24 +1034,28 @@ function createModsDialogInjectClass() {
 
                 this.content.find(".apply-button").on("click", () => {
                     const serverConnection = this.content.find("input[name='server-connection']").prop("checked");
-                    const customTrollSound = this.content.find("input[name='custom-troll-sound']").prop("checked");
+                    const dTrollDetection = this.content.find("input[name='d-troll-detection']").prop("checked");
                     const customCssEnabled = this.content.find("input[name='custom-css']").prop("checked");
                     const customDefaultStyles = this.content.find("input[name='custom-default-styles']").prop("checked");
                     const customCssInput = this.content.find("textarea[name='custom-css-input']").val();
+                    let trollSpeedLimit = parseInt(this.content.find("input[name='troll-speed-limit']").val(), 10);
+                    if (!Number.isFinite(trollSpeedLimit)) trollSpeedLimit = 3000;
+                    trollSpeedLimit = Math.min(50000, Math.max(500, trollSpeedLimit));
 
                     //Check if the server connection setting has just changed
                     const serverConnectionChanged = window.modSettings.serverConnection !== serverConnection;
                     window.modSettings ??= {};
                     Object.assign(window.modSettings, {
                         serverConnection,
-                        customTrollSound,
+                        dTrollDetection,
                         customCssEnabled,
                         customDefaultStyles,
                         customCss: customCssInput,
-                        syncPriorityList: window.modSettings.syncPriorityList
+                        syncPriorityList: window.modSettings.syncPriorityList,
+                        trollSpeedLimit
                     });
-                    
-                    saveSettings(window.modSettings); 
+
+                    saveSettings(window.modSettings);
 
                     if (serverConnectionChanged) {
                         if (serverConnection) {
@@ -1574,7 +1593,43 @@ class TrollMonitor{
         messagehandler.register('LEFT', this.handleLeft, this);
         broadcasthandler.register('Pd', this.handlePenDown, this);
         broadcasthandler.register('Pu', this.handlePenUp, this);
+        broadcasthandler.register('Pm', this.handlePenMove, this);
         broadcasthandler.register('Bch', this.handleBrushChange, this);
+        this.hookSurfaces();
+    }
+
+    // Pen moves don't reliably reach the raw socket hook (they can arrive batched), so also
+    // listen where FlockMod itself draws a remote user's stroke: PenSurface.penDown/penMove/penUp.
+    hookSurfaces(){
+        if (typeof PenSurface === 'undefined' || PenSurface.prototype.__trollHooked) return;
+        PenSurface.prototype.__trollHooked = true;
+        const monitor = this;
+        const findName = (surface) => {
+            if (surface.isMyself || !window.room) return null;
+            for (const u of Object.values(window.room.users)) {
+                if (u.surface === surface) return u.username;
+            }
+            return null;
+        };
+        const wrap = (method, penDown) => {
+            const orig = PenSurface.prototype[method];
+            PenSurface.prototype[method] = function(x, y){
+                try {
+                    const name = findName(this);
+                    if (name && monitor.users.has(name)) {
+                        if (penDown === true) monitor.startStroke(name, {x: x, y: y});
+                        else {
+                            if (penDown === false) monitor.users.get(name).penDown = false;
+                            monitor.storePosition(name, {x: x, y: y});
+                        }
+                    }
+                } catch (e) {}
+                return orig.apply(this, arguments);
+            };
+        };
+        wrap('penDown', true);
+        wrap('penMove');
+        wrap('penUp', false);
     }
 
     handleJoin(message){
@@ -1594,12 +1649,35 @@ class TrollMonitor{
         let username = message.from;
         if(this.users.has(username)){
             this.users.get(username).penDown = false;
+            this.storePosition(username, message);
         }
     }
     handlePenDown(message){
         let username = message.from;
-        if(this.users.has(username)){
-            this.users.get(username).penDown = true;
+        this.startStroke(username, message);
+    }
+    // New stroke: measure from the pen-down point, so the jump from where the cursor last was isn't counted
+    startStroke(username, message){
+        const user = this.users.get(username);
+        if(!user) return;
+        user.penDown = true;
+        this.storePosition(username, message);
+        if(user.netPosition){
+            user.lastPosition = {x: user.netPosition.x, y: user.netPosition.y, time: Date.now()};
+        }
+    }
+    handlePenMove(message){
+        this.storePosition(message.from, message);
+    }
+    // FlockMod only writes a remote user's surface.cursor.x/y on SYNC, not on each pen move,
+    // so the poller reads the position from the Pd/Pm/Pu broadcasts instead.
+    storePosition(username, message){
+        const user = this.users.get(username);
+        if(!user) return;
+        const x = Number(message.x);
+        const y = Number(message.y);
+        if(Number.isFinite(x) && Number.isFinite(y)){
+            user.netPosition = {x: x, y: y};
         }
     }
     handleBrushChange(message){
@@ -1673,7 +1751,8 @@ class TrollMonitor{
             
             // Only calculate speed if time has passed and there's movement
             if(timeDiff > 0){
-                const speed = distance / timeDiff; // pixels per second
+                // Hover moves (pen up) count as 0, so cursor travel before a click isn't scored as drawing
+                const speed = user.penDown ? distance / timeDiff : 0; // pixels per second
                 user.speedSamples.push(speed);
                 
                 // Keep only last 20 speed samples
@@ -1708,33 +1787,53 @@ class TrollMonitor{
         this.calculate(username);
     }
 
+    // Userlist row for a name, without building a selector from it (names can contain quotes)
+    trollRow(username){
+        return $("tr").filter(function(){ return this.getAttribute("name") === username; });
+    }
+
     calculate(username){
         const user = this.users.get(username);
         if (!user) return;
         let userObj = Object.values(room.users).find(u => u.username === username);
+        if (!userObj) return;
 
-        
-        if(user.penDown && user.averageSpeed > this.GRIEF_SPEED_THRESHOLD && (user.tool != "selection") && (!user.isRanked)){
+        // D's box on: D's detector runs (Zexium's steps aside in flockmod.js)
+        const settings = window.modSettings || {};
+        const active = settings.dTrollDetection !== false;
+        const griefSpeed = Number(settings.trollSpeedLimit) > 0 ? Number(settings.trollSpeedLimit) : this.GRIEF_SPEED_THRESHOLD;
+        const safeSpeed = griefSpeed * (this.SAFE_SPEED_THRESHOLD / this.GRIEF_SPEED_THRESHOLD);
+
+        if(!active){
+            // switched away from D's: clear only the flags D set, leave Zexium's alone
+            if(user.dFlagged){
+                this.trollRow(username).removeClass('troll');
+                userObj.troll = false;
+                user.dFlagged = false;
+            }
+        } else if(user.penDown && user.averageSpeed > griefSpeed && (user.tool != "selection") && (!user.isRanked)){
             //Troll threshhold
-            console.log("TROLL DETECTED: ", username);
-            userObj.troll = true;
-            if(window.modSettings.customTrollSound){
+            if(!user.dFlagged){
+                console.log("TROLL DETECTED: ", username);
                 customSound.play();
             }
-            let usertr = $(`tr[name='${username}']`);
+            user.dFlagged = true;
+            userObj.troll = true;
+            let usertr = this.trollRow(username);
             usertr.addClass('troll');
         }
-        if(user.averageSpeed < this.SAFE_SPEED_THRESHOLD){
+        if(user.averageSpeed < safeSpeed){
             // Start timing if not already timing
             if(!user.slowStartTime){
                 user.slowStartTime = Date.now();
             }
-            
+
             let slowTime = Date.now() - user.slowStartTime;
-            if(slowTime >= this.IDLE_TIMEOUT){
-                let usertr = $(`tr[name='${username}']`);
+            if(slowTime >= this.IDLE_TIMEOUT && user.dFlagged){
+                let usertr = this.trollRow(username);
                 usertr.removeClass('troll');
                 userObj.troll = false;
+                user.dFlagged = false;
             }
         } else {
             // Reset the timer when speed goes above threshold
@@ -1852,13 +1951,14 @@ class TrollMonitor{
             const user = window.room.users[username];
             
             if(user && user.surface){
-                let x = user.surface.cursor.x;
-                let y = user.surface.cursor.y;
-                if (!x || !y ){
-                    x = 0;
-                    y = 0;
+                // Prefer the broadcast position; fall back to the cursor (set on SYNC)
+                let pos = userData.netPosition;
+                if (!pos && Number.isFinite(user.surface.cursor.x) && Number.isFinite(user.surface.cursor.y)){
+                    pos = {x: user.surface.cursor.x, y: user.surface.cursor.y};
                 }
-                this.updatePosition(username, x, y);
+                // No position yet: skip, so the first real one isn't measured as a jump from 0,0
+                if (!pos) continue;
+                this.updatePosition(username, pos.x, pos.y);
             }
         }
     }

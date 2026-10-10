@@ -46,3 +46,5 @@
 !mapping-13.5.10.json
 !resolutions-13.5.10/
 !resolutions-13.5.10/*.js
+# 13.5.11 update: original-vs-original diff (fmdiff.py is covered by *.py) and changelogs
+!CHANGES-*.md

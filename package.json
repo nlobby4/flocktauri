@@ -1,7 +1,7 @@
 {
   "name": "flocktauri",
   "private": true,
-  "version": "1.7.1",
+  "version": "1.7.2",
   "scripts": {
     "tauri": "tauri",
     "tauri dev": "tauri dev",

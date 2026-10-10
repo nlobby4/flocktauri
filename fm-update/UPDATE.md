@@ -1,6 +1,19 @@
 # Updating flocktauri to a new FlockMod version
 
-This is how 13.5.7 was updated to 13.5.10 (v1.6.0). It's the method to repeat each time.
+## Current method (since 13.5.11)
+
+Kyle wants the obfuscated originals compared directly, not a full deobfuscation. `fmdiff.py` does that.
+
+1. `python fmdiff.py check` fetches flockmod.com/draw/. If the `flockmod.js?v=` hash differs from `originals/latest.txt`, it saves the untouched original as `originals/flockmod.HASH.orig.js` (plus `draw.HASH.html`) and writes `originals/diff-OLD-NEW/`. Exit 0 means no change, 10 means a new version, 1 means an error. Keep every original; the next update diffs against it.
+2. `fmdiff.py` resolves the string table in Python (no FlockMod code runs), prettifies twice, and renames `_0x` names to `v1`, `v2_3`... per function. A real update comes out at a few thousand diff lines. `summary.txt` lists the changed methods.
+3. Read `changes.diff` and port each hunk by hand into `extension/flockmod.js`. Property names and strings are real; to find which helper a junk name is, look at its definition in the resolved source (`work-13.5.11/lookup.py` and `freeids.py` show how).
+4. Mirror handshake changes exactly (see Rules). Then run `node --check`, `loadtest.js`, `strict.js` and `injcheck.js` on the file.
+
+13.5.11 was done this way; see `CHANGES-13.5.11.md`. `fmdiff.py diff OLD.orig.js NEW.orig.js OUTDIR` runs the diff on two files directly.
+
+## Old method (13.5.7 to 13.5.10)
+
+This is how 13.5.7 was updated to 13.5.10 (v1.6.0). It needs webcrack and name recovery, which Kyle no longer wants.
 
 **The idea:** don't redo a full merge. Diff old vanilla FlockMod against new vanilla FlockMod, then port only that difference into our modded file, one method at a time.
 

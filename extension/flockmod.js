@@ -51142,6 +51142,12 @@ const UserStateManager = {
   // New map to store speed records: array of { time, distance }
   originalRanks: new Map(),
   lastDrawTime: new Map(),
+  // mod: shared troll warning; injected.js styles tr.troll and re-applies it from user.troll
+  setTrollFlag(userObj, on) {
+    userObj.troll = on;
+    // filter rather than a [name='...'] selector, so names with quotes can't throw
+    $("tr").filter(function () { return this.getAttribute("name") === userObj.username; }).toggleClass("troll", on);
+  },
   setPenState(user, isDown) {
     this.penStates.set(user, isDown);
   },
@@ -51898,7 +51904,9 @@ class Socket {
         const currentTime = Date.now();
 
         // Convenient configuration variables
-        const detectTrolling = localStorage.getItem("detectTrolling") === "true";
+        // mod: D's troll detection (injected.js Mod Settings) takes over when both are switched on
+        const dTrollOn = !!window.modSettings && window.modSettings.dTrollDetection !== false;
+        const detectTrolling = localStorage.getItem("detectTrolling") === "true" && !dTrollOn;
         const GRIEF_SPEED_THRESHOLD = 25000; // pixels per second threshold
         const SAFE_SPEED_THRESHOLD = 15000;
         const SPEED_WINDOW = 40; // window in milliseconds over which to compute average speed
@@ -51923,10 +51931,11 @@ class Socket {
               if (!userObj) {
                 return;
               }
-              // Only apply WU rank to users who have RU or UU rank
+              // Only flag users who have RU or UU rank
               if (!UserStateManager.originalRanks.has(user) && (userObj.rank === "RU" || userObj.rank === "UU")) {
                 UserStateManager.originalRanks.set(user, userObj.rank);
-                userObj.changeRank("WU");
+                // mod: same flashing .troll row as D's detector (was changeRank("WU"))
+                UserStateManager.setTrollFlag(userObj, true);
                 const trollSound = localStorage.getItem(config.localStorageKeys.trollSound) || "nosound";
                 UI?.soundSystem?.play(trollSound);
               }
@@ -51946,7 +51955,7 @@ class Socket {
                   // If they've been under threshold for long enough, revert rank
                   const userObj = Object.values(room.users).find(u => u.username === user);
                   if (userObj) {
-                    userObj.changeRank(UserStateManager.originalRanks.get(user) || userObj.rank);
+                    UserStateManager.setTrollFlag(userObj, false);
                     UserStateManager.originalRanks.delete(user);
                     UserStateManager.lastDrawTime.delete(user);
                   }
@@ -51964,12 +51973,19 @@ class Socket {
               if (!isDrawing && idleTime >= IDLE_TIMEOUT) {
                 const userObj = Object.values(room.users).find(u => u.username === user);
                 if (userObj) {
-                  userObj.changeRank(UserStateManager.originalRanks.get(user) || userObj.rank);
+                  UserStateManager.setTrollFlag(userObj, false);
                   UserStateManager.originalRanks.delete(user);
                   UserStateManager.lastDrawTime.delete(user);
                 }
               }
             }
+          } else if (UserStateManager.originalRanks.has(user)) {
+            // detection switched off while someone was flagged: clear it
+            const userObj = Object.values(room.users).find(u => u.username === user);
+            if (userObj) {
+              UserStateManager.setTrollFlag(userObj, false);
+            }
+            UserStateManager.originalRanks.delete(user);
           }
         });
       }, 200); // Interval for checking average speed
