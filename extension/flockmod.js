@@ -39884,36 +39884,14 @@ function stripBBCode(comment) {
   }
   return comment.replace(/\[\/?(?:b|i|u|url|quote|code|img|color|size)*?.*?\]/gim, "");
 }
-var linkSignatures = new Map();
-var maxLinkSignatures = 2000;
-function storeLinkSignatures(links) {
-  if (!links || typeof links !== "object") {
-    return;
-  }
-  for (var url in links) {
-    if (Object.prototype.hasOwnProperty.call(links, url) && typeof links[url] === "string" && /^[0-9a-f]{32}$/.test(links[url])) {
-      linkSignatures.delete(url);
-      linkSignatures.set(url, links[url]);
-    }
-  }
-  while (linkSignatures.size > maxLinkSignatures) {
-    linkSignatures.delete(linkSignatures.keys().next().value);
-  }
-}
-function signedLinkURL(url) {
-  var signature = linkSignatures.get(url);
-  return UI.baseURL + "/url?u=" + encodeURIComponent(url) + (signature ? "&s=" + signature : "");
-}
-function resignLinks(container) {
-  $(container).find("a[data-url]").each(function () {
-    $(this).attr("href", signedLinkURL($(this).attr("data-url")));
-  });
-}
+// Mod: chat links open the real URL directly. FlockMod 13.5.11 routes them through
+// flockmod.com/url?u=...&s=... (so it sees every link clicked); the link signatures
+// the server sends with CHATMSG, CHATACK and CHATEDITED are ignored.
 function parseURL(escaped) {
   var value = /(https?:\/\/[^\s<]+)/g;
   return escaped.replace(value, function (match) {
     var url = htmlToText(match);
-    return '<a href="' + escapeHTML(signedLinkURL(url)) + '" data-url="' + escapeHTML(url) + '" target="_blank" rel="noopener noreferrer">' + match + "</a>";
+    return '<a href="' + escapeHTML(url) + '" data-url="' + escapeHTML(url) + '" target="_blank" rel="noopener noreferrer">' + match + "</a>";
   });
 }
 function nl2br(value, value2) {
@@ -50190,7 +50168,6 @@ class CmdCHATMSG extends CommandHandler {
   execute(event) {
     const userInRoom = this.getUserInRoom(event.from);
     if (userInRoom) {
-      storeLinkSignatures(event.links);
       this.UI.chatDialog.createMessage(event.chatname, event.chattype, "MSG", event.message, userInRoom.username, event.image, event.id ? {
         id: event.id,
         replyTo: event.replyTo || null
@@ -50204,10 +50181,6 @@ class CmdCHATACK extends CommandHandler {
       return;
     }
     this.UI.chatDialog.acknowledgeMessage(event.localRef, event.id);
-    if (event.links) {
-      storeLinkSignatures(event.links);
-      resignLinks(this.UI.chatDialog.findMessage(String(event.id)));
-    }
   }
 }
 class CmdCHATREACTIONS extends CommandHandler {
@@ -50217,7 +50190,6 @@ class CmdCHATREACTIONS extends CommandHandler {
 }
 class CmdCHATEDITED extends CommandHandler {
   execute(event) {
-    storeLinkSignatures(event.links);
     this.UI.chatDialog.applyEdit(event.id, event.message);
   }
 }
