@@ -10735,6 +10735,13 @@ class ReorderableImageGrid extends UIComponent {
     this._onUp = function (event) {
       self.onPointerUp(event.originalEvent || event);
     };
+    this.scroll = this.container.overlayScrollbars({
+      className: "os-theme-light",
+      overflowBehavior: {
+        y: "hidden"
+      }
+    }).overlayScrollbars();
+    this.scroll.addExt("fmExtension");
   }
   setImages(value, isOwner) {
     this.editable = !!isOwner;
@@ -20287,6 +20294,9 @@ class ChatDialog extends Dialog {
     this.previews = new ImagePreview();
     this.emojiList = new EmojiSelector(this.content.find(".emojiContainer"));
     this.userTag = new UserTag(this.content.find(".userTagContainer"));
+    this.buildComposerContext();
+    this.buildMessageActions();
+    this.registerMessageMenu();
     var self = this;
     $(this.emojiList).on("dialogClosed", function (event) {
       self.content.find('input[name="text"]').focus();
@@ -20348,7 +20358,7 @@ class ChatDialog extends Dialog {
           callback: function (type, value) {
             if (type == "copylink") {
               var trigger = value.$trigger;
-              navigator.clipboard.writeText(trigger.attr("href"));
+              navigator.clipboard.writeText(trigger.attr("data-url") || trigger.attr("href"));
             } else if (type == "openlink") {
               var trigger = value.$trigger;
               window.open(trigger.attr("href"), "_blank");
@@ -20399,7 +20409,87 @@ class ChatDialog extends Dialog {
       }
     });
     $(this.emojiList).on("emojiSelected", function (event) {
+      if (self.emojiTarget) {
+        var emojiTarget = self.emojiTarget;
+        self.emojiTarget = null;
+        self.emojiList.hide();
+        self.sendReaction(emojiTarget, event.emoji);
+        return;
+      }
       self.content.find('input[name="text"]').val(self.content.find('input[name="text"]').val() + event.emoji);
+    });
+    $(this.emojiList).on("dialogClosed", function (event) {
+      self.emojiTarget = null;
+    });
+    this.content.on(UI.pointerEvent("click"), ".msgReaction", function (event) {
+      event.preventDefault();
+      if (self.reactionWhoPressed) {
+        self.reactionWhoPressed = false;
+        return;
+      }
+      var line = $(this).closest(".msgLine");
+      if (line.attr("data-deleted")) {
+        return;
+      }
+      self.sendReaction(line.attr("data-id"), $(this).attr("data-emoji"));
+    });
+    this.reactionWhoChip = null;
+    this.reactionWhoTimer = null;
+    this.reactionWhoPressed = false;
+    this.content.on("pointerenter", ".msgReaction", function (event) {
+      if ((event.originalEvent || event).pointerType == "touch") {
+        return;
+      }
+      var chip = $(this);
+      clearTimeout(self.reactionWhoTimer);
+      self.reactionWhoTimer = setTimeout(function () {
+        self.showReactionWho(chip);
+      }, 300);
+    });
+    this.content.on("pointerleave", ".msgReaction", function (event) {
+      if ((event.originalEvent || event).pointerType == "touch") {
+        return;
+      }
+      self.hideReactionWho();
+    });
+    this.content.on("touchstart", ".msgReaction", function (event) {
+      event.stopPropagation();
+      var chip = $(this);
+      self.reactionWhoPressed = false;
+      clearTimeout(self.reactionWhoTimer);
+      self.reactionWhoTimer = setTimeout(function () {
+        self.reactionWhoPressed = true;
+        self.showReactionWho(chip);
+      }, 500);
+    });
+    this.content.on("touchend touchmove touchcancel", ".msgReaction", function (event) {
+      event.stopPropagation();
+      if (!self.reactionWhoPressed) {
+        clearTimeout(self.reactionWhoTimer);
+      } else if (event.type === "touchend") {
+        event.preventDefault();
+      }
+    });
+    this.content.on("touchstart", function (event) {
+      if (self.reactionWhoChip && !$(event.target).closest(".msgReaction").is(self.reactionWhoChip)) {
+        self.hideReactionWho();
+      }
+    });
+    this.content.on(UI.pointerEvent("click"), ".msgReply", function (event) {
+      event.preventDefault();
+      var message = self.findMessage($(this).attr("data-reply-to"));
+      if (message.length === 0) {
+        return;
+      }
+      message.addClass("is-highlighted");
+      self.scroll.scroll({
+        el: message[0],
+        scroll: "always",
+        block: "center"
+      }, 200);
+      setTimeout(function () {
+        message.removeClass("is-highlighted");
+      }, 1500);
     });
     this.content.find('button[name="submit"]').on(UI.pointerEvent("click"), function (event) {
       event.preventDefault();
@@ -20462,6 +20552,12 @@ class ChatDialog extends Dialog {
           }
           return;
         }
+      }
+      if (event.key == "Escape" && self.composing) {
+        event.preventDefault();
+        event.stopPropagation();
+        self.clearComposerContext();
+        return;
       }
       if (event.which == 13) {
         event.preventDefault();
@@ -20870,6 +20966,7 @@ class ChatDialog extends Dialog {
               this.channels[this.currentChannel].input = this.content.find('input[name="text"]').val();
             }
           }
+          this.clearComposerContext();
           this.content.find('input[name="text"]').val(this.channels[name].input);
           this.currentChannel = name;
           this.setUnreadMessages(username, type, 0);
@@ -20907,7 +21004,7 @@ class ChatDialog extends Dialog {
       type: type
     };
   }
-  composeHTML(type, br, userKey = null) {
+  composeHTML(type, br, userKey = null, meta = null) {
     var obj = {};
     var date = dateToObj();
     var timestamp = date.hours + ":" + date.minutes;
@@ -20924,10 +21021,60 @@ class ChatDialog extends Dialog {
     } else if (type == "GM") {
       obj.block = '<div class="chatBlock gmBlock"><div class="msgTime" data-timestamp = "' + timestamp + '">' + timestamp + '</div><div class="msgContent"></div></div>';
     }
-    obj.text = '<div class="msgLine"><div class="msgTime" data-timestamp = "' + timestamp + '"></div><div class="msgText">' + br + "</div></div>";
+    var attrs = "";
+    var replyHeader = "";
+    if (meta) {
+      if (meta.id) {
+        attrs += ' data-id="' + escapeHTML(String(meta.id)) + '"';
+      }
+      if (meta.localRef) {
+        attrs += ' data-localref="' + escapeHTML(String(meta.localRef)) + '"';
+      }
+      attrs += ' data-at="' + Date.now() + '"';
+      if (meta.replyTo) {
+        replyHeader = this.composeReplyHeader(meta.replyTo);
+      }
+    }
+    obj.text = '<div class="msgLine"' + attrs + ">" + replyHeader + '<div class="msgTime" data-timestamp = "' + timestamp + '"></div><div class="msgText">' + br + "</div></div>";
     return obj;
   }
-  createMessage(name, type, type2, escaped, userKey = null, value = null) {
+  composeReplyHeader(id) {
+    var message = this.findMessage(id);
+    var replyAttr = ' data-reply-to="' + escapeHTML(String(id)) + '"';
+    if (message.length === 0) {
+      return '<div class="msgReply' + '"' + replyAttr + '><span class="msgReplyText is-gone">' + escapeHTML(textManager.getString("chat.message.replyUnavailable", null, false)) + "</span></div>";
+    }
+    var text = message.attr("data-deleted") ? textManager.getString("chat.message.deleted", null, false) : this.excerptOf(this.plainTextOf(message));
+    return '<div class="msgReply"' + replyAttr + ">" + '<i class="fas fa-reply"></i>' + '<span class="msgReplyAuthor">' + escapeHTML(this.authorOf(message)) + "</span>" + '<span class="msgReplyText' + (message.attr("data-deleted") ? " is-gone" : "") + '">' + escapeHTML(text) + "</span>" + "</div>";
+  }
+  tagMentions(text) {
+    const value = /(?:^|\s?)@([^\s&]+?)((?:&[a-zA-Z0-9#]{1,8};|[,\.¡\!¿\?'"\:\;])*?)(?:$|\s)/g;
+    var mentions = [];
+    var mentioned = false;
+    text = text.replace(value, function (match, group1, group2) {
+      let value = "";
+      if (room.myself.username == group1) {
+        mentioned = true;
+        value = " chatTagYou";
+      } else if (!room.userExists(group1)) {
+        value = " chatTagUnknown";
+      }
+      mentions.push(group1);
+      return ' <span class="chatTag' + value + '">@' + group1 + "</span>" + group2 + " ";
+    });
+    return {
+      html: text,
+      mentions: mentions,
+      mentioned: mentioned
+    };
+  }
+  tagEmoji(text) {
+    return text.replace(/(\p{Emoji_Presentation}|\p{Extended_Pictographic})(?![^<]*>|[^<>]*<\/)/gu, '<span class="chatEmoji">$&</span>');
+  }
+  renderMessageText(text) {
+    return nl2br(parseURL(this.tagEmoji(this.tagMentions(escapeHTML(text)).html)));
+  }
+  createMessage(name, type, type2, escaped, userKey = null, value = null, meta = null) {
     var user = null;
     var ignored = false;
     if (type2 == "MYMSG") {
@@ -20962,22 +21109,10 @@ class ChatDialog extends Dialog {
       if (list) {
         escaped = '<img src="' + list + '" class="chatDataUri transparentBg" /><br>' + escaped;
       }
-      var value2 = [];
-      var composeHTML = false;
-      const value4 = /(?:^|\s?)@([^\s&]+?)((?:&[a-zA-Z0-9#]{1,8};|[,\.¡\!¿\?'"\:\;])*?)(?:$|\s)/g;
-      escaped = escaped.replace(value4, function (match, group1, group2) {
-        let value = "";
-        if (room.myself.username == group1) {
-          composeHTML = true;
-          value = " chatTagYou";
-        } else if (!room.userExists(group1)) {
-          value = " chatTagUnknown";
-        }
-        value2.push(group1);
-        return ' <span class="chatTag' + value + '">@' + group1 + "</span>" + group2 + " ";
-      });
-      escaped = escaped.replace(/(\p{Emoji_Presentation}|\p{Extended_Pictographic})(?![^<]*>|[^<>]*<\/)/gu, '<span class="chatEmoji">$&</span>');
-      var block = this.composeHTML(type2, nl2br(parseURL(escaped)), userKey);
+      var tagged = this.tagMentions(escaped);
+      var composeHTML = tagged.mentioned;
+      escaped = this.tagEmoji(tagged.html);
+      var block = this.composeHTML(type2, nl2br(parseURL(escaped)), userKey, meta);
       var lastMessage2 = $(block.block);
       lastMessage2.find(".msgContent").append(block.text);
       var text = this.lastMessage(name, type);
@@ -21016,6 +21151,438 @@ class ChatDialog extends Dialog {
       }
     }
   }
+  findMessage(id) {
+    if (!/^[0-9a-f]{1,16}:[0-9]+$/.test(String(id))) {
+      return $();
+    }
+    return this.content.find('#chatMessages .msgLine[data-id="' + id + '"]');
+  }
+  applyReactions(id, reactions) {
+    var message = this.findMessage(id);
+    if (message.length === 0) {
+      return;
+    }
+    var container = message.find(".msgReactions");
+    if (!reactions || reactions.length === 0) {
+      container.remove();
+      return;
+    }
+    if (container.length === 0) {
+      container = $('<div class="msgReactions"></div>');
+      message.find(".msgText").after(container);
+    }
+    var username = room.myself ? room.myself.username : null;
+    if (this.reactionWhoChip && $.contains(container[0], this.reactionWhoChip[0])) {
+      this.hideReactionWho();
+    }
+    container.empty();
+    for (var i = 0; i < reactions.length; i++) {
+      var reaction = reactions[i];
+      var mine = $.inArray(username, reaction.users) !== -1;
+      var chip = $('<span class="msgReaction"></span>').attr("data-emoji", reaction.emoji).attr("data-who", this.reactionTally(reaction)).toggleClass("is-mine", mine);
+      chip.append($('<span class="msgReactionEmoji"></span>').text(reaction.emoji));
+      if (reaction.count > 1) {
+        chip.append($('<span class="msgReactionCount"></span>').text(reaction.count));
+      }
+      container.append(chip);
+    }
+    this.keepAtBottom();
+  }
+  showReactionWho(chip) {
+    if (!chip || !$.contains(document, chip[0])) {
+      return;
+    }
+    this.reactionWhoChip = chip;
+    var offset = chip.offset();
+    var tooltips = UI.tooltips;
+    tooltips.mousePosition = new Point(offset.left, offset.top + chip.outerHeight() - 16);
+    tooltips.showTooltip('<span class="reactionTip">' + escapeHTML(chip.attr("data-who")) + "</span>");
+  }
+  hideReactionWho() {
+    clearTimeout(this.reactionWhoTimer);
+    this.reactionWhoTimer = null;
+    this.reactionWhoPressed = false;
+    if (this.reactionWhoChip) {
+      this.reactionWhoChip = null;
+      UI.tooltips.hideTooltip();
+    }
+  }
+  reactionTally(reaction) {
+    var users = reaction.users.slice(0, 6);
+    var others = reaction.users.length - users.length;
+    var text = users.join(", ");
+    if (others > 0) {
+      text += ", " + textManager.getString("chat.reactions.andOthers", others, false);
+    }
+    return reaction.emoji + " " + text;
+  }
+  applyEdit(id, text) {
+    var message = this.findMessage(id);
+    if (message.length === 0 || message.attr("data-deleted")) {
+      return;
+    }
+    var msgText = message.find(".msgText");
+    var html = this.renderMessageText(text);
+    msgText.html(html);
+    msgText.append(' <span class="msgEdited" title="' + escapeHTML(textManager.getString("chat.message.editedTitle", null, false)) + '">' + escapeHTML(textManager.getString("chat.message.edited", null, false)) + "</span>");
+    this.refreshQuotesOf(id, text);
+    this.keepAtBottom();
+  }
+  applyDelete(id, byModerator) {
+    var message = this.findMessage(id);
+    if (message.length === 0) {
+      return;
+    }
+    var text = byModerator ? textManager.getString("chat.message.deletedByModerator", null, false) : textManager.getString("chat.message.deletedByAuthor", null, false);
+    message.attr("data-deleted", "1");
+    message.find(".msgReactions").remove();
+    message.find(".msgText").empty().append($('<span class="msgDeleted"></span>').html(text));
+    this.refreshQuotesOf(id, null);
+    this.keepAtBottom();
+  }
+  applyDeletedBy(id, moderator) {
+    var message = this.findMessage(id);
+    if (message.length === 0 || !message.attr("data-deleted") || !moderator) {
+      return;
+    }
+    message.find(".msgText .msgDeleted").text(textManager.getString("chat.message.deletedByModeratorNamed", String(moderator), false));
+  }
+  refreshQuotesOf(id, text) {
+    var self = this;
+    this.content.find('#chatMessages .msgReply[data-reply-to="' + id + '"]').each(function () {
+      var replyText = $(this).find(".msgReplyText");
+      if (text === null) {
+        replyText.addClass("is-gone").text(textManager.getString("chat.message.deleted", null, false));
+      } else {
+        replyText.removeClass("is-gone").text(self.excerptOf(text));
+      }
+    });
+  }
+  excerptOf(text) {
+    var value = String(text).replace(/\s+/g, " ").trim();
+    if (value.length > 120) {
+      return value.substring(0, 119) + "…";
+    } else {
+      return value;
+    }
+  }
+  keepAtBottom() {
+    var value = this.scroll.scroll();
+    var atBottom = value.max.y === 0 || Math.abs(value.max.y - value.position.y) <= 50;
+    if (!atBottom) {
+      return;
+    }
+    var self = this;
+    setTimeout(function () {
+      self.scroll.scroll({
+        y: "100%"
+      });
+      self.updateScrollIndicator();
+    }, 50);
+  }
+  buildComposerContext() {
+    var self = this;
+    this.composing = null;
+    var context = $('<div class="composerContext" style="display: none;">' + '<i class="composerContextIcon fas fa-reply"></i>' + '<span class="composerContextLabel"></span>' + '<span class="composerContextText"></span>' + '<a href="#" class="composerContextCancel"><i class="fas fa-times"></i></a>' + "</div>");
+    context.find(".composerContextCancel").on(UI.pointerEvent("click"), function (event) {
+      event.preventDefault();
+      self.clearComposerContext();
+      self.content.find('input[name="text"]').focus();
+    });
+    this.content.find("#imagePreviewContainer").before(context);
+    context.parent().addClass("composerContextHost");
+  }
+  positionComposerContext() {
+    var hasImage = this.content.find("#imagePreviewContainer").children().length > 0;
+    this.content.find(".composerContext").toggleClass("hasImage", hasImage);
+  }
+  setComposerContext(mode, id) {
+    var message = this.findMessage(id);
+    if (message.length === 0 || message.attr("data-deleted")) {
+      return;
+    }
+    var context = this.content.find(".composerContext");
+    var input = this.content.find('input[name="text"]');
+    var text = this.plainTextOf(message);
+    this.composing = {
+      mode: mode,
+      id: id
+    };
+    context.find(".composerContextIcon").attr("class", "composerContextIcon fas " + (mode == "edit" ? "fa-pen" : "fa-reply"));
+    context.find(".composerContextLabel").text(textManager.getString(mode == "edit" ? "chat.composer.editing" : "chat.composer.replyingTo", mode == "edit" ? null : this.authorOf(message), false));
+    context.find(".composerContextText").text(this.excerptOf(text));
+    context.show();
+    this.positionComposerContext();
+    if (mode == "edit") {
+      input.val(text);
+    }
+    input.focus();
+  }
+  clearComposerContext() {
+    var editing = this.composing && this.composing.mode == "edit";
+    this.composing = null;
+    this.content.find(".composerContext").hide().removeClass("hasImage");
+    if (editing) {
+      this.content.find('input[name="text"]').val("");
+    }
+  }
+  plainTextOf(message) {
+    var msgText = message.find(".msgText").clone();
+    msgText.find(".msgEdited, .chatThumb, img").remove();
+    return msgText.text().trim();
+  }
+  authorOf(message) {
+    return message.closest(".chatBlock").attr("data-username") || "";
+  }
+  channelOf(message) {
+    return message.closest(".channelMessages").attr("name") || "";
+  }
+  actionsFor(message) {
+    var mine = message.closest(".chatBlock").attr("data-type") == "MYMSG";
+    var deleted = !!message.attr("data-deleted");
+    var at = parseInt(message.attr("data-at"), 10) || 0;
+    var inRoom = this.channelOf(message)[0] == "#";
+    var canModerate = false;
+    try {
+      canModerate = inRoom && room.can("deletechatmessages");
+    } catch (error) {}
+    return {
+      react: !deleted,
+      reply: !deleted,
+      edit: mine && !deleted && Date.now() - at < ChatDialog.EDIT_WINDOW_MS,
+      remove: !deleted && (mine || canModerate)
+    };
+  }
+  sendReaction(id, emoji) {
+    socket.send({
+      command: "USERSET",
+      action: "ChatReact",
+      id: id,
+      emoji: emoji
+    }, true);
+  }
+  sendDelete(id) {
+    socket.send({
+      command: "USERSET",
+      action: "ChatDelete",
+      id: id
+    }, true);
+  }
+  openReactionPicker(message) {
+    var self = this;
+    var id = message.attr("data-id");
+    this.closeReactionPicker();
+    var picker = $('<div class="reactionPicker"></div>');
+    $.each(ChatDialog.QUICK_REACTIONS, function (index, emoji) {
+      $('<button type="button" class="reactionPick"></button>').text(emoji).on(UI.pointerEvent("click"), function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        self.sendReaction(id, emoji);
+        self.closeReactionPicker();
+      }).appendTo(picker);
+    });
+    $('<button type="button" class="reactionPick reactionMore"><i class="fas fa-plus"></i></button>').on(UI.pointerEvent("click"), function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      self.emojiTarget = id;
+      self.emojiList.showNear($(this), "right");
+      self.closeReactionPicker();
+    }).appendTo(picker);
+    $("body").append(picker);
+    var rect = message[0].getBoundingClientRect();
+    var pickerRect = picker[0].getBoundingClientRect();
+    var top = rect.top - pickerRect.height - 4;
+    if (top < 4) {
+      top = rect.bottom + 4;
+    }
+    picker.css({
+      top: Math.round(top) + "px",
+      left: Math.round(Math.max(4, Math.min(rect.left, $(window).width() - pickerRect.width - 4))) + "px"
+    });
+    this.reactionPicker = picker;
+    setTimeout(function () {
+      $(document).on("mousedown.reactionPicker touchstart.reactionPicker", function (event) {
+        if ($(event.target).closest(".reactionPicker").length > 0) {
+          return;
+        }
+        self.closeReactionPicker();
+      });
+    }, 0);
+  }
+  closeReactionPicker() {
+    if (this.reactionPicker) {
+      this.reactionPicker.remove();
+      this.reactionPicker = null;
+    }
+    $(document).off(".reactionPicker");
+  }
+  buildMessageActions() {
+    var self = this;
+    this.messageActions = $('<div class="msgActions" style="display: none;"></div>');
+    this.actionLine = null;
+    var actions = [{
+      key: "react",
+      icon: "fa-face-smile"
+    }, {
+      key: "reply",
+      icon: "fa-reply"
+    }, {
+      key: "edit",
+      icon: "fa-pen"
+    }, {
+      key: "delete",
+      icon: "fa-trash"
+    }];
+    this.content.append(this.messageActions);
+    $.each(actions, function (index, action) {
+      $('<button type="button" class="msgAction"></button>').attr("name", action.key).attr("data-tooltipcallback", "tooltipText").attr("data-tooltipparam", "menu.message." + action.key).append('<i class="fas ' + action.icon + '"></i>').on(UI.pointerEvent("click"), function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (self.actionLine) {
+          self.runMessageAction(action.key, self.actionLine);
+        }
+      }).appendTo(self.messageActions);
+    });
+    this.content.on("mouseenter", ".msgLine[data-id]", function () {
+      self.showMessageActions($(this));
+    });
+    this.content.on("mouseleave", ".chatBox", function () {
+      self.hideMessageActions();
+    });
+    var pressTimer = null;
+    var pressed = false;
+    this.content.on("touchstart", ".msgLine[data-id]", function (event) {
+      var line = $(this);
+      pressed = false;
+      pressTimer = setTimeout(function () {
+        pressed = true;
+        UI.contextMenu.open(line, event.originalEvent.touches[0].pageX, event.originalEvent.touches[0].pageY);
+      }, 500);
+    });
+    this.content.on("touchend touchmove", ".msgLine[data-id]", function (event) {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+      if (pressed && event.type === "touchend") {
+        event.preventDefault();
+        pressed = false;
+      }
+    });
+  }
+  showMessageActions(line) {
+    if (!this.messageActions || this.reactionPicker) {
+      return;
+    }
+    var allowed = this.actionsFor(line);
+    var visible = 0;
+    this.messageActions.find(".msgAction").each(function () {
+      var name = $(this).attr("name");
+      var show = name == "delete" ? allowed.remove : allowed[name];
+      $(this).toggle(!!show);
+      if (show) {
+        visible++;
+      }
+    });
+    if (visible === 0) {
+      this.hideMessageActions();
+      return;
+    }
+    this.actionLine = line;
+    line.append(this.messageActions);
+    this.messageActions.show();
+  }
+  hideMessageActions() {
+    if (this.messageActions) {
+      this.messageActions.hide().appendTo(this.content);
+    }
+    this.actionLine = null;
+  }
+  runMessageAction(action, line) {
+    var id = line.attr("data-id");
+    if (action == "react") {
+      this.openReactionPicker(line);
+    } else if (action == "reply") {
+      this.setComposerContext("reply", id);
+    } else if (action == "edit") {
+      this.setComposerContext("edit", id);
+    } else if (action == "copymessage") {
+      navigator.clipboard.writeText(this.plainTextOf(line)).catch(function (error) {
+        console.error("Failed to copy: ", error);
+      });
+    } else if (action == "delete") {
+      this.confirmDelete(line, id);
+    }
+  }
+  registerMessageMenu() {
+    var self = this;
+    UI.contextMenu.register({
+      selector: ".msgLine[data-id]",
+      build: function (line) {
+        var allowed = self.actionsFor(line);
+        var items = {};
+        if (allowed.react) {
+          items.react = {
+            name: "React",
+            icon: "fa-face-smile"
+          };
+        }
+        if (allowed.reply) {
+          items.reply = {
+            name: "Reply",
+            icon: "fa-reply"
+          };
+        }
+        if (allowed.edit) {
+          items.edit = {
+            name: "Edit",
+            icon: "fa-pen"
+          };
+        }
+        items.copymessage = {
+          name: "Copy message",
+          icon: "fa-copy"
+        };
+        if (allowed.remove) {
+          items["-"] = {
+            type: "cm_separator"
+          };
+          items.delete = {
+            name: "Delete",
+            icon: "fa-trash"
+          };
+        }
+        $.each(items, function (index, item) {
+          if (item.name) {
+            items[index].name = function () {
+              return textManager.getString("menu.message." + index, null, false);
+            };
+          }
+        });
+        return {
+          callback: function (action, value) {
+            self.runMessageAction(action, value.$trigger);
+          },
+          items: items
+        };
+      }
+    });
+  }
+  confirmDelete(line, id) {
+    var self = this;
+    var mine = line.closest(".chatBlock").attr("data-type") == "MYMSG";
+    if (mine) {
+      this.sendDelete(id);
+      return;
+    }
+    var confirmation = UI.dialogHandler.createConfirmation(textManager.getString("chat.message.confirmDelete", escapeHTML(this.authorOf(line))));
+    confirmation.on("confirmationClosed", function (event) {
+      if (event.response == "ok") {
+        self.sendDelete(id);
+      }
+      UI.dialogHandler.destroyConfirmation();
+    });
+  }
   showNotification(value, currentText, value2) {
     UI.topbar.setText(value, currentText, value2);
   }
@@ -21034,7 +21601,7 @@ class ChatDialog extends Dialog {
         var value = self.scroll.scroll();
         var value2 = 50;
         var value3 = value.max.y === 0 || Math.abs(value.max.y - value.position.y) <= value2;
-        unloaded.append('<a data-thumb-service="' + thumb.service + '" data-thumb-id="' + thumb.id + '" href="' + thumb.url + '" target="_blank"></a>').find("a").append(img);
+        unloaded.append('<a data-thumb-service="' + thumb.service + '" data-thumb-id="' + thumb.id + '" href="' + thumb.url + '" target="_blank" rel="noopener noreferrer"></a>').find("a").append(img);
         if (value3) {
           setTimeout(function (unused) {
             self.scroll.scroll({
@@ -21046,30 +21613,72 @@ class ChatDialog extends Dialog {
       });
     }
   }
+  nextLocalRef() {
+    this.localRefCounter = (this.localRefCounter || 0) + 1;
+    return "l" + this.localRefCounter;
+  }
+  acknowledgeMessage(localRef, id) {
+    var ref = String(localRef);
+    if (!/^l[0-9]+$/.test(ref)) {
+      return;
+    }
+    var line = this.content.find('#chatMessages .msgLine[data-localref="' + ref + '"]');
+    if (line.length === 0) {
+      return;
+    }
+    line.attr("data-id", String(id)).removeAttr("data-localref");
+  }
   sendMessage() {
     var message = this.content.find('input[name="text"]').val().slice(0, 250);
+    if (this.composing && this.composing.mode == "edit") {
+      if (message.trim() != "") {
+        socket.send({
+          command: "USERSET",
+          action: "ChatEdit",
+          id: this.composing.id,
+          message: message
+        }, true);
+      }
+      this.content.find('input[name="text"]').val("");
+      this.clearComposerContext();
+      return;
+    }
     if (message != "" || this.pendingImage) {
       var channel = this.getChannelObject(this.currentChannel);
+      var localRef = this.nextLocalRef();
+      var replyTo = this.composing && this.composing.mode == "reply" ? this.composing.id : null;
       var message2 = {
         command: "USERSET",
         action: "Chat",
         chattype: channel.type,
         chatname: channel.name,
-        message: message
+        message: message,
+        localRef: localRef
       };
+      if (replyTo) {
+        message2.replyTo = replyTo;
+      }
       if (this.pendingImage) {
         message2.image = {
           data: this.pendingImage
         };
         this.createMessage(channel.name, channel.type, "MYMSG", message, null, {
           data: this.pendingImage
+        }, {
+          localRef: localRef,
+          replyTo: replyTo
         });
         this.pendingImage = null;
         this.content.find("#imagePreviewContainer").empty();
+        this.positionComposerContext();
       } else {
-        this.createMessage(channel.name, channel.type, "MYMSG", message);
+        this.createMessage(channel.name, channel.type, "MYMSG", message, null, null, {
+          localRef: localRef,
+          replyTo: replyTo
+        });
       }
       this.content.find('input[name="text"]').val("");
+      this.clearComposerContext();
       socket.send(message2, true);
     }
     this.scroll.scroll({
@@ -21110,9 +21719,11 @@ class ChatDialog extends Dialog {
           var canvasData = canvas.getData();
           var chatImagePreview = $('<div class="chatImagePreview"><img src="' + canvasData + '"><button class="remove-image">X</button></div>');
           self.content.find("#imagePreviewContainer").html(chatImagePreview);
+          self.positionComposerContext();
           self.pendingImage = canvasData;
           chatImagePreview.find(".remove-image").on(UI.pointerEvent("click"), function () {
             self.content.find("#imagePreviewContainer").empty();
+            self.positionComposerContext();
             self.pendingImage = null;
           });
         });
@@ -21226,6 +21837,9 @@ class ChatDialog extends Dialog {
       }
     }
   }
+  onHide() {
+    this.hideReactionWho();
+  }
   onShow() {
     this.changed();
     var self = this;
@@ -21280,6 +21894,8 @@ class ChatDialog extends Dialog {
     return this.modal.is(":visible") || this.emojiList.isVisible();
   }
 }
+ChatDialog.EDIT_WINDOW_MS = 5 * 60 * 1000;
+ChatDialog.QUICK_REACTIONS = ["👍", "😂", "❤️", "😮", "😢"];
 class ChatChannel {
   constructor(name, type) {
     this.name = name;
@@ -22742,7 +23358,7 @@ class RoomManagerBansSubDialog extends SubDialog {
         socket.send(message, true);
         self.dialog.loading(true);
       } else {
-        UI.dialogHandler.showAlert(textManager.getString("alerts.txtInvalidIP"));
+        UI.dialogHandler.showAlert(textManager.getString("alerts.txtInvalidConnectionId"));
       }
     });
     this.dialog.modal.on(UI.pointerEvent("click", "banSubdialog"), "#updateBan", function (event) {
@@ -22763,7 +23379,7 @@ class RoomManagerBansSubDialog extends SubDialog {
         socket.send(message, true);
         self.dialog.loading(true);
       } else {
-        UI.dialogHandler.showAlert(textManager.getString("alerts.txtInvalidIP"));
+        UI.dialogHandler.showAlert(textManager.getString("alerts.txtInvalidConnectionId"));
       }
     });
     socket.send({
@@ -22980,7 +23596,7 @@ class RoomManagerSilencesSubDialog extends SubDialog {
         socket.send(message, true);
         self.dialog.loading(true);
       } else {
-        UI.dialogHandler.showAlert(textManager.getString("alerts.txtInvalidIP"));
+        UI.dialogHandler.showAlert(textManager.getString("alerts.txtInvalidConnectionId"));
       }
     });
     this.dialog.modal.on(UI.pointerEvent("click", "silenceSubdialog"), "#updateSilence", function (event) {
@@ -23000,7 +23616,7 @@ class RoomManagerSilencesSubDialog extends SubDialog {
         socket.send(message, true);
         self.dialog.loading(true);
       } else {
-        UI.dialogHandler.showAlert(textManager.getString("alerts.txtInvalidIP"));
+        UI.dialogHandler.showAlert(textManager.getString("alerts.txtInvalidConnectionId"));
       }
     });
     socket.send({
@@ -23225,7 +23841,7 @@ class RoomManagerMutesSubDialog extends SubDialog {
         socket.send(message, true);
         self.dialog.loading(true);
       } else {
-        UI.dialogHandler.showAlert(textManager.getString("alerts.txtInvalidIP"));
+        UI.dialogHandler.showAlert(textManager.getString("alerts.txtInvalidConnectionId"));
       }
     });
     this.dialog.modal.on(UI.pointerEvent("click", "muteSubdialog"), "#updateMute", function (event) {
@@ -23245,7 +23861,7 @@ class RoomManagerMutesSubDialog extends SubDialog {
         socket.send(message, true);
         self.dialog.loading(true);
       } else {
-        UI.dialogHandler.showAlert(textManager.getString("alerts.txtInvalidIP"));
+        UI.dialogHandler.showAlert(textManager.getString("alerts.txtInvalidConnectionId"));
       }
     });
     socket.send({
@@ -23576,7 +24192,9 @@ class SaveDialog extends Dialog {
             self.hide();
             UI.dialogHandler.showDialog("galleryimage", value2);
           }).fail(function (error) {
-            UI.dialogHandler.showAlert(textManager.getString("save.lblUploadFail"));
+            var contentType = error.getResponseHeader ? error.getResponseHeader("Content-Type") || "" : "";
+            var reason = contentType.indexOf("text/plain") === 0 && error.responseText ? error.responseText.trim() : "";
+            UI.dialogHandler.showAlert(reason && reason.length < 500 ? escapeHTML(reason) : textManager.getString("save.lblUploadFail"));
             self.loading(false);
           });
         });
@@ -24867,7 +25485,7 @@ class UserProfileDialog extends Dialog {
     this.youFollowing = false;
     this.icon = "fa-id-card";
     this.caption = textManager.getString("userprofile.title");
-    this.loadContent(this.loadFile("forms/userprofile.main.html"));
+    this.loadContent(this.loadFile("forms/userprofile.v2.html"));
   }
   loadContent(html) {
     this.content.html(html);
@@ -24883,7 +25501,7 @@ class UserProfileDialog extends Dialog {
     $(this.posts).on("imageSelected", function (event) {
       UI.galleryImageDialog.show(event.imageId);
     });
-    this.content.on(UI.pointerEvent("click"), 'button[name="gallery"]', function (event) {
+    this.content.on(UI.pointerEvent("click"), 'a[name="gallery"]', function (event) {
       event.preventDefault();
       if (self.targetUid) {
         self.hide();
@@ -24891,11 +25509,11 @@ class UserProfileDialog extends Dialog {
         UI.userGalleryDialog.show();
       }
     });
-    this.content.on(UI.pointerEvent("click"), 'button[name="account"]', function (event) {
+    this.content.on(UI.pointerEvent("click"), 'a[name="account"]', function (event) {
       event.preventDefault();
       UI.profileDialog.show();
     });
-    this.content.on(UI.pointerEvent("click"), 'button[name="follow"]', function (event) {
+    this.content.on(UI.pointerEvent("click"), 'a[name="follow"]', function (event) {
       event.preventDefault();
       if (!self.targetUid) {
         return;
@@ -24911,14 +25529,14 @@ class UserProfileDialog extends Dialog {
         self.sendFollow("follow");
       }
     });
-    this.content.on(UI.pointerEvent("click"), 'button[name="friend"]', function (event) {
+    this.content.on(UI.pointerEvent("click"), 'a[name="friend"]', function (event) {
       event.preventDefault();
       if (!self.targetUid) {
         return;
       }
       UI.friendsDialog.requestByUID(self.targetUid);
     });
-    this.content.on(UI.pointerEvent("click"), 'button[name="message"]', function (event) {
+    this.content.on(UI.pointerEvent("click"), 'a[name="message"]', function (event) {
       event.preventDefault();
       var roomUser = self.roomUser();
       if (!roomUser) {
@@ -24956,6 +25574,9 @@ class UserProfileDialog extends Dialog {
       action: "Profile",
       uid: uid
     };
+    if (targetUsername) {
+      message.username = targetUsername;
+    }
     socket.send(message, true);
   }
   gotProfile(event) {
@@ -24966,13 +25587,9 @@ class UserProfileDialog extends Dialog {
     this.showcaseMax = event.showcaseMax || 0;
     this.youFollowing = !!target.youFollowing;
     this.content.find(".userProfileName").html(usernameBadgeHtml(target.username, target));
-    if (target.joindate) {
-      this.content.find(".userProfileJoinedText").text(textManager.getString("userprofile.lblJoined", formatTimestamp(target.joindate, false), false));
-      this.content.find(".userProfileJoined").removeClass("invisibleContent");
-    } else {
-      this.content.find(".userProfileJoined").addClass("invisibleContent");
-    }
-    this.content.find(".userProfileIdText").text(target.uid);
+    this.content.find('input[name="joined"]').val(target.joindate ? formatTimestamp(target.joindate, false) : "");
+    this.content.find(".userProfileJoined").toggle(!!target.joindate);
+    this.content.find('input[name="uid"]').val(target.uid);
     this.renderRank(target);
     this.renderActions();
     this.renderStats(event.stats || {}, target);
@@ -24992,16 +25609,17 @@ class UserProfileDialog extends Dialog {
     } else if (target.isGlobal) {
       rank = "GM";
     }
-    this.content.find(".userProfileRank").text(UI.userRank(rank, false)).attr("class", "userProfileRank " + UI.rankToStyle(rank));
+    this.content.find('input[name="rank"]').val(UI.userRank(rank, false)).attr("class", "form-control big-input " + UI.rankToStyle(rank));
   }
   renderActions() {
     var value = this.youFollowing ? "usergallery.lblUnfollow" : "usergallery.lblFollow";
+    var loggedIn = typeof room != "undefined" && room && room.myself && room.myself.rank != "UU" && (!room.myself.isLogged || room.myself.isLogged());
     this.content.find(".userProfileFollowLabel").text(textManager.getString(value, null, false));
-    this.content.find('button[name="follow"]').toggleClass("is-on", this.youFollowing).prop("disabled", this.isOwner).toggleClass("invisibleContent", this.isOwner);
-    var value2 = !this.isOwner && typeof room != "undefined" && room.myself && room.myself.rank != "UU";
-    this.content.find('button[name="friend"]').toggleClass("invisibleContent", !value2);
-    this.content.find('button[name="message"]').toggleClass("invisibleContent", !this.roomUser());
-    this.content.find('button[name="account"]').toggleClass("invisibleContent", !this.isOwner);
+    this.content.find('a[name="follow"] i').attr("class", this.youFollowing ? "fas fa-user-minus" : "fas fa-user-plus");
+    this.content.find('a[name="follow"]').toggleClass("disabled", this.isOwner).toggle(!this.isOwner && !!loggedIn);
+    this.content.find('a[name="friend"]').toggle(!this.isOwner && !!loggedIn);
+    this.content.find('a[name="message"]').toggle(!!loggedIn && !!this.roomUser());
+    this.content.find('a[name="account"]').toggle(this.isOwner);
   }
   roomUser() {
     if (!this.targetUid || typeof room == "undefined" || !room || !room.users) {
@@ -25016,7 +25634,7 @@ class UserProfileDialog extends Dialog {
     return null;
   }
   sendFollow(perForm) {
-    this.content.find('button[name="follow"]').prop("disabled", true);
+    this.content.find('a[name="follow"]').addClass("disabled");
     socket.send({
       command: "GALLERYSET",
       action: "User",
@@ -25026,39 +25644,43 @@ class UserProfileDialog extends Dialog {
   }
   updateUserInfo(value) {
     if (!value || Number(value.uid) !== Number(this.targetUid)) {
-      this.content.find('button[name="follow"]').prop("disabled", false);
+      this.content.find('a[name="follow"]').removeClass("disabled");
       return;
     }
     this.youFollowing = !!value.youFollowing;
     this.content.find(".userProfileStatFollowers .userProfileStatValue").text(value.followersCount || 0);
     this.renderActions();
-    this.content.find('button[name="follow"]').prop("disabled", this.isOwner);
   }
   renderStats(stats, target) {
     var list = [{
       name: "posts",
       value: stats.uploads || 0,
-      key: "userprofile.statPosts"
+      key: "userprofile.statPosts",
+      icon: "fa-images"
     }, {
       name: "likes",
       value: stats.likes || 0,
-      key: "userprofile.statLikes"
+      key: "userprofile.statLikes",
+      icon: "fa-thumbs-up"
     }, {
       name: "favorites",
       value: stats.favorites || 0,
-      key: "userprofile.statFavorites"
+      key: "userprofile.statFavorites",
+      icon: "fa-heart"
     }, {
       name: "comments",
       value: stats.comments || 0,
-      key: "userprofile.statComments"
+      key: "userprofile.statComments",
+      icon: "fa-comment"
     }, {
       name: "followers",
       value: target.followersCount || 0,
-      key: "userprofile.statFollowers"
+      key: "userprofile.statFollowers",
+      icon: "fa-users"
     }];
     var html = "";
     list.forEach(function (event) {
-      html += '<div class="userProfileStat userProfileStat' + event.name.charAt(0).toUpperCase() + event.name.slice(1) + '"><span class="userProfileStatValue">' + event.value + '</span><span class="userProfileStatLabel">' + textManager.getString(event.key, null, false) + "</span></div>";
+      html += '<div class="col userProfileStat' + event.name.charAt(0).toUpperCase() + event.name.slice(1) + '">' + '<div class="alert alert-info userProfileTile mb-0">' + '<i class="fas ' + event.icon + '"></i>' + '<h1 class="userProfileStatValue">' + parseInt(event.value, 10) + "</h1>" + textManager.getString(event.key, null, false) + "</div>" + "</div>";
     });
     this.content.find(".userProfileStats").html(html);
   }
@@ -25455,17 +26077,33 @@ class EditProfileDialog extends Dialog {
     this.minWidth = 420;
     this.minHeight = 340;
     this.rememberCheckbox = null;
-    this.loadContent(this.loadFile("forms/editprofile.main.html"));
+    this.loadContent(this.loadFile("forms/editprofile.v2.html"));
     var self = this;
-    this.content.on(UI.pointerEvent("click"), "#applyProfile", function (event) {
+    this.content.on(UI.pointerEvent("click"), "#applyStatus", function (event) {
       event.preventDefault();
-      room.myself.changeStatus(self.content.find('input[name="status"]').val());
-      self.hide();
+      self.applyStatus(self.content.find('input[name="status"]').val());
     });
     this.content.on(UI.pointerEvent("click"), "#clearStatus", function (event) {
       event.preventDefault();
       self.content.find('input[name="status"]').val("");
+      self.applyStatus("");
     });
+    this.content.on("input", 'input[name="status"]', function () {
+      self.updateStatusButtons();
+    });
+    this.content.on("keydown", 'input[name="status"]', function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        self.applyStatus($(this).val());
+      }
+    });
+    this.content.on(UI.pointerEvent("click"), "#goToAccount", function (event) {
+      event.preventDefault();
+      self.hide();
+      UI.profileDialog.show();
+    });
+    this.content.find("#clearStatus").attr("title", textManager.getString("editprofile.btnClearStatus", null, false));
+    this.content.find("#applyStatus").attr("title", textManager.getString("profile.info.btnApplyChanges", null, false));
     this.content.on(UI.pointerEvent("click"), "#changeUsername", function (event) {
       event.preventDefault();
       self.enableModal(self.loadFile("forms/profile.modal.changeusername.html"));
@@ -25504,10 +26142,22 @@ class EditProfileDialog extends Dialog {
   usernameChanged(value) {
     this.content.find('input[name="username"]').val(value);
   }
+  applyStatus(status) {
+    room.myself.changeStatus(status);
+    this.updateStatusButtons();
+  }
+  updateStatusButtons() {
+    var value = this.content.find('input[name="status"]').val();
+    var current = room.myself.status || "";
+    this.content.find("#applyStatus").toggleClass("disabled", value === current);
+    this.content.find("#clearStatus").toggleClass("disabled", value === "" && current === "");
+  }
   onShow() {
     this.content.find('input[name="username"]').val(room.myself.username);
     this.content.find('input[name="status"]').val(room.myself.status);
     this.content.find('input[name="status"]').focus();
+    this.updateStatusButtons();
+    this.content.find(".editProfileAccountInfo").toggle(room.myself.rank != "UU");
     this.changed();
   }
 }
@@ -34148,12 +34798,22 @@ class ReportDialog extends Dialog {
       message2.reason = category;
       message2.message = message;
       socket.send(message2, true);
-      UI.dialogHandler.showAlert(textManager.getString("alerts.txtReportSent"));
       self.hide();
     });
   }
   loadContent(html) {
     this.content.html(html);
+  }
+  userReportResult(event) {
+    if (event.code == "OK") {
+      UI.dialogHandler.showAlert(textManager.getString("alerts.txtReportSent"));
+    } else if (event.code == "DUPLICATE") {
+      UI.dialogHandler.showAlert(textManager.getString("report.lblDuplicate"));
+    } else if (event.code == "LIMIT") {
+      UI.dialogHandler.showAlert(textManager.getString("report.lblLimit"));
+    } else {
+      UI.dialogHandler.showAlert(textManager.getString("report.lblReportFailed"));
+    }
   }
   reportResult(event) {
     if (event.status == "OK") {
@@ -34604,7 +35264,7 @@ class MessengerDialog extends Dialog {
           callback: function (type, value) {
             if (type == "copylink") {
               var trigger = value.$trigger;
-              navigator.clipboard.writeText(trigger.attr("href"));
+              navigator.clipboard.writeText(trigger.attr("data-url") || trigger.attr("href"));
             } else if (type == "openlink") {
               var trigger = value.$trigger;
               window.open(trigger.attr("href"), "_blank");
@@ -34630,12 +35290,23 @@ class MessengerDialog extends Dialog {
       }
     });
     UI.contextMenu.register({
-      selector: 'a[name="options"]',
+      selector: '#conversationTitle a[name="options"]',
       trigger: "left",
       build: function (unused) {
         var options = {
           callback: function (type, unused) {
-            if (type == "remove") {
+            if (type == "profile") {
+              if (self.selectedUserUID != null) {
+                var username = self.content.find('.messengerUser[data-uid="' + self.selectedUserUID + '"]').data("username");
+                UI.userProfileDialog.loadProfile(self.selectedUserUID, username);
+                UI.userProfileDialog.show();
+              }
+            } else if (type == "gallery") {
+              if (self.selectedUserUID != null) {
+                UI.userGalleryDialog.loadGallery("UID", self.selectedUserUID);
+                UI.userGalleryDialog.show();
+              }
+            } else if (type == "remove") {
               if (self.selectedUserUID != null) {
                 var confirmation = UI.dialogHandler.createConfirmation(textManager.getString("messenger.lblDeleteConversation"));
                 confirmation.on("confirmationClosed", function (event) {
@@ -34668,6 +35339,17 @@ class MessengerDialog extends Dialog {
             }
           },
           items: {
+            profile: {
+              name: "Profile",
+              icon: "fa-user-tie"
+            },
+            gallery: {
+              name: "Gallery",
+              icon: "fa-images"
+            },
+            sepWho: {
+              type: "cm_separator"
+            },
             remove: {
               name: "Delete conversation",
               icon: "fa-trash-can"
@@ -34688,10 +35370,17 @@ class MessengerDialog extends Dialog {
             }
           }
         };
+        var keys = {
+          profile: "menu.userList.Pfl",
+          gallery: "menu.userList.Ugd"
+        };
         $.each(options.items, function (index, item) {
-          options.items[index].name &&= function () {
-            return textManager.getString("menu.messenger." + index, null, false);
-          };
+          if (options.items[index].name) {
+            var key = keys[index] || "menu.messenger." + index;
+            options.items[index].name = function () {
+              return textManager.getString(key, null, false);
+            };
+          }
         });
         return options;
       }
@@ -35004,7 +35693,7 @@ class MessengerDialog extends Dialog {
         var value = self.scroll.scroll();
         var value2 = 50;
         var value3 = value.max.y === 0 || Math.abs(value.max.y - value.position.y) <= value2;
-        unloaded.append('<a data-thumb-service="' + thumb.service + '" data-thumb-id="' + thumb.id + '" href="' + thumb.url + '" target="_blank"></a>').find("a").append(img);
+        unloaded.append('<a data-thumb-service="' + thumb.service + '" data-thumb-id="' + thumb.id + '" href="' + thumb.url + '" target="_blank" rel="noopener noreferrer"></a>').find("a").append(img);
         if (value3) {
           setTimeout(function (unused) {
             self.scroll.scroll({
@@ -35302,7 +35991,7 @@ class FriendsDialog extends Dialog {
     super(parent, name);
     this.icon = "fa-user-group";
     this.caption = textManager.getString("friends.title");
-    this.width = 520;
+    this.width = 600;
     this.height = 480;
     this.minWidth = 380;
     this.minHeight = 380;
@@ -35398,6 +36087,7 @@ class FriendsDialog extends Dialog {
       this.renderRequests();
       this.attachScroll(".friendRequestsBox");
     }
+    this.processSizeType(this.sizeType);
     this.refresh();
     this.changed();
   }
@@ -35590,6 +36280,9 @@ class FriendsDialog extends Dialog {
     }
     return '<span class="friendExpiry">' + textManager.getString("friends.lblExpiresIn", targetFollowersCount) + "</span>";
   }
+  rowButton(name, classes, icon, key) {
+    return '<a href="#" name="' + name + '" class="btn ' + classes + ' btn-xs" title="' + escapeHTML(textManager.getString(key, null, false)) + '">' + '<i class="fas ' + icon + '"></i> ' + textManager.getString(key) + "</a>";
+  }
   createRequest(uid, dataUsername, expires, badges) {
     if (this.content.find('.friendRequestRow[data-uid="' + uid + '"]').length > 0) {
       return;
@@ -35598,7 +36291,7 @@ class FriendsDialog extends Dialog {
     div.addClass("friendRequestRow");
     div.attr("data-uid", uid);
     div.attr("data-username", dataUsername);
-    div.html(this.friendNameHtml(dataUsername, badges) + this.expiryLabel(expires) + '<span class="friendActions"><a href="#" name="accept" class="btn btn-success btn-xs me-1"><i class="fas fa-check"></i> ' + textManager.getString("friends.btnAccept") + '</a><a href="#" name="reject" class="btn btn-danger btn-xs"><i class="fas fa-times"></i> ' + textManager.getString("friends.btnReject") + "</a></span>");
+    div.html(this.friendNameHtml(dataUsername, badges) + this.expiryLabel(expires) + '<span class="friendActions">' + this.rowButton("accept", "btn-success me-1", "fa-check", "friends.btnAccept") + this.rowButton("reject", "btn-danger", "fa-times", "friends.btnReject") + "</span>");
     this.content.find(".friendRequestList").append(div);
   }
   createSent(uid, dataUsername, expires, badges) {
@@ -35609,7 +36302,7 @@ class FriendsDialog extends Dialog {
     div.addClass("friendSentRow");
     div.attr("data-uid", uid);
     div.attr("data-username", dataUsername);
-    div.html(this.friendNameHtml(dataUsername, badges) + this.expiryLabel(expires) + '<span class="friendActions"><a href="#" name="cancel" class="btn btn-danger btn-xs"><i class="fas fa-ban"></i> ' + textManager.getString("friends.btnCancelRequest") + "</a></span>");
+    div.html(this.friendNameHtml(dataUsername, badges) + this.expiryLabel(expires) + '<span class="friendActions">' + this.rowButton("cancel", "btn-danger", "fa-ban", "friends.btnCancelRequest") + "</span>");
     this.content.find(".friendSentList").append(div);
   }
   removeSentRow(uid) {
@@ -35791,6 +36484,10 @@ class GalleryImageDialog extends Dialog {
     this.width = 850;
     this.quickReactions = ["👍", "😂", "❤️", "😮", "😢"];
     this.emojiTarget = null;
+    this.reactionUsers = {};
+    this.reactionWhoChip = null;
+    this.reactionWhoTimer = null;
+    this.reactionWhoPressed = false;
     this.loadContent(this.loadFile("forms/galleryimage.main.html"));
     this.emojiList = new EmojiSelector(this.content.find(".emojiContainer"));
     this.imageViewer = new ImageViewer(this.content.find("#galleryImagePreviewDiv"), 0, 0, false);
@@ -35836,6 +36533,10 @@ class GalleryImageDialog extends Dialog {
     this.content.on(UI.pointerEvent("click"), ".reactionChip", function (event) {
       event.preventDefault();
       var element = $(this);
+      if (self.reactionWhoPressed) {
+        self.reactionWhoPressed = false;
+        return;
+      }
       self.sendReaction(element.closest(".commentReactions").data("comment"), element.attr("data-emoji"));
     });
     this.content.on(UI.pointerEvent("click"), ".reactionOpen", function (event) {
@@ -35861,15 +36562,44 @@ class GalleryImageDialog extends Dialog {
     this.content.on(UI.pointerEvent("click"), function (event) {
       self.closeQuickBar();
     });
-    this.content.on(UI.pointerEvent("click"), ".reactionWho", function (event) {
-      event.preventDefault();
-      var message = {
-        command: "GALLERYGET",
-        action: "Reaction",
-        perform: "who"
-      };
-      message.comment = $(this).closest(".commentReactions").data("comment");
-      socket.send(message, true);
+    this.content.on("pointerenter", ".reactionChip", function (event) {
+      var original = event.originalEvent || event;
+      if (original.pointerType == "touch") {
+        return;
+      }
+      var chip = $(this);
+      clearTimeout(self.reactionWhoTimer);
+      self.reactionWhoTimer = setTimeout(function () {
+        self.showReactionWho(chip);
+      }, 300);
+    });
+    this.content.on("pointerleave", ".reactionChip", function (event) {
+      var original = event.originalEvent || event;
+      if (original.pointerType == "touch") {
+        return;
+      }
+      self.hideReactionWho();
+    });
+    this.content.on("touchstart", ".reactionChip", function (event) {
+      var chip = $(this);
+      self.reactionWhoPressed = false;
+      clearTimeout(self.reactionWhoTimer);
+      self.reactionWhoTimer = setTimeout(function () {
+        self.reactionWhoPressed = true;
+        self.showReactionWho(chip);
+      }, 500);
+    });
+    this.content.on("touchend touchmove touchcancel", ".reactionChip", function (event) {
+      if (!self.reactionWhoPressed) {
+        clearTimeout(self.reactionWhoTimer);
+      } else if (event.type === "touchend") {
+        event.preventDefault();
+      }
+    });
+    this.content.on("touchstart", function (event) {
+      if (self.reactionWhoChip && !$(event.target).closest(".reactionChip").is(self.reactionWhoChip)) {
+        self.hideReactionWho();
+      }
     });
     this.content.find('.btn[name="voteup"]').on(UI.pointerEvent("click"), function (event) {
       event.preventDefault();
@@ -36019,9 +36749,6 @@ class GalleryImageDialog extends Dialog {
     if (room.myself.isLogged() && !options.mine) {
       html += '<a href="#" class="reactionOpen" data-tooltipcallback="tooltipText" data-tooltipparam="galleryimage.lblAddReaction">' + new Icon("fa-face-smile").html() + " " + textManager.getString("galleryimage.lblReact", null, false) + "</a>";
     }
-    if (value) {
-      html += '<a href="#" class="reactionWho" data-tooltipcallback="tooltipText" data-tooltipparam="galleryimage.lblWhoReacted">' + textManager.getString("galleryimage.lblWho", null, false) + "</a>";
-    }
     return html + "</div>";
   }
   openQuickBar(self) {
@@ -36041,6 +36768,10 @@ class GalleryImageDialog extends Dialog {
   }
   updateReactions(comment, value) {
     var commentReactions = this.content.find('.commentReactions[data-comment="' + comment + '"]');
+    delete this.reactionUsers[comment];
+    if (this.reactionWhoChip && this.reactionWhoChip.closest(".commentReactions").data("comment") == comment) {
+      this.hideReactionWho();
+    }
     if (commentReactions.length) {
       commentReactions.replaceWith(this.reactionsHtml(comment, value));
     }
@@ -36050,17 +36781,74 @@ class GalleryImageDialog extends Dialog {
     var tooltipParam = code == "PROFILEPENDING" ? "alerts.txtGalleryProfilePending" : "alerts.txtCommandFailed";
     UI.dialogHandler.showAlert(new Icon("fa-exclamation-triangle").html() + " " + textManager.getString(tooltipParam));
   }
+  showReactionWho(chip) {
+    if (!chip || !$.contains(document, chip[0])) {
+      return;
+    }
+    var comment = chip.closest(".commentReactions").data("comment");
+    this.reactionWhoChip = chip;
+    var users = this.reactionUsers[comment];
+    if (Array.isArray(users)) {
+      this.renderReactionWho();
+      return;
+    }
+    this.placeReactionWho(chip, '<span class="reactionTip">' + escapeHTML(chip.attr("data-emoji")) + " …</span>");
+    if (users !== "pending") {
+      this.reactionUsers[comment] = "pending";
+      var message = {
+        command: "GALLERYGET",
+        action: "Reaction",
+        perform: "who",
+        comment: comment
+      };
+      socket.send(message, true);
+    }
+  }
   showReactionUsers(comment, users) {
-    var html = '<div class="reactionWhoList">';
-    if (!users || users.length === 0) {
-      html += '<div class="noComments">' + textManager.getString("galleryimage.lblNoReactions") + "</div>";
-    } else {
-      for (var i = 0; i < users.length; i++) {
-        html += '<div class="reactionWhoRow"><span class="reactionWhoEmoji">' + users[i].emoji + '</span><span class="reactionWhoName">' + escapeHTML(users[i].username) + "</span></div>";
+    this.reactionUsers[comment] = Array.isArray(users) ? users : [];
+    if (this.reactionWhoChip && this.reactionWhoChip.closest(".commentReactions").data("comment") == comment) {
+      this.renderReactionWho();
+    }
+  }
+  renderReactionWho() {
+    var chip = this.reactionWhoChip;
+    if (!chip || !$.contains(document, chip[0])) {
+      this.hideReactionWho();
+      return;
+    }
+    var emoji = chip.attr("data-emoji");
+    var users = this.reactionUsers[chip.closest(".commentReactions").data("comment")] || [];
+    var names = [];
+    for (var i = 0; i < users.length; i++) {
+      if (users[i].emoji === emoji) {
+        names.push(escapeHTML(users[i].username));
       }
     }
-    html += "</div>";
-    UI.dialogHandler.showAlert(html);
+    if (names.length === 0) {
+      this.placeReactionWho(chip, '<span class="reactionTip">' + escapeHTML(textManager.getString("galleryimage.lblNoReactions", null, false)) + "</span>");
+      return;
+    }
+    var limit = 12;
+    var text = names.slice(0, limit).join(", ");
+    if (names.length > limit) {
+      text += ", " + escapeHTML(textManager.getString("chat.reactions.andOthers", names.length - limit, false));
+    }
+    this.placeReactionWho(chip, '<span class="reactionTip"><span class="reactionTipEmoji">' + escapeHTML(emoji) + "</span> " + text + "</span>");
+  }
+  placeReactionWho(chip, html) {
+    var offset = chip.offset();
+    var tooltips = UI.tooltips;
+    tooltips.mousePosition = new Point(offset.left, offset.top + chip.outerHeight() - 16);
+    tooltips.showTooltip(html);
+  }
+  hideReactionWho() {
+    clearTimeout(this.reactionWhoTimer);
+    this.reactionWhoTimer = null;
+    this.reactionWhoPressed = false;
+    if (this.reactionWhoChip) {
+      this.reactionWhoChip = null;
+      UI.tooltips.hideTooltip();
+    }
   }
   vote(perForm) {
     var youLiked = perForm === "like" ? this.youLiked : this.youDisliked;
@@ -36261,6 +37049,8 @@ class GalleryImageDialog extends Dialog {
     }
     this.emojiTarget = null;
     this.closeQuickBar();
+    this.hideReactionWho();
+    this.reactionUsers = {};
     if (this.tagManager) {
       this.tagManager.destroy();
       this.tagManager = null;
@@ -36271,6 +37061,10 @@ class GalleryImageDialog extends Dialog {
   }
   getDataURL() {
     return this.content.find("#galleryImagePreviewDiv img").attr("src");
+  }
+  refusedComment(tempId, reason) {
+    this.deletedComment("OK", tempId);
+    UI.dialogHandler.showAlert(reason ? escapeHTML(reason) : textManager.getString("galleryimage.lblCommentFailed"));
   }
   deletedComment(status, name) {
     if (status == "OK") {
@@ -36722,6 +37516,7 @@ class AdminConsoleDialog extends Dialog {
     this.bansSubDialog = new AdminConsoleBansSubDialog(this);
     this.eventsSubDialog = new AdminConsoleEventsSubDialog(this);
     this.feedbackSubDialog = new AdminConsoleFeedbackSubDialog(this);
+    this.reportsSubDialog = new AdminConsoleReportsSubDialog(this);
     this.gallerySubDialog = new AdminConsoleGallerySubDialog(this);
     var self = this;
     this.content.on(UI.pointerEvent("click"), ".subcontentOption", function (event) {
@@ -36782,6 +37577,10 @@ class AdminConsoleDialog extends Dialog {
       this.eventsSubDialog.load();
       dynamicDialogArea.append(this.eventsSubDialog.subContent);
       this.currentSubDialog = this.eventsSubDialog;
+    } else if (subcontent == "reports") {
+      this.reportsSubDialog.load();
+      dynamicDialogArea.append(this.reportsSubDialog.subContent);
+      this.currentSubDialog = this.reportsSubDialog;
     } else if (subcontent == "feedback") {
       this.feedbackSubDialog.load();
       dynamicDialogArea.append(this.feedbackSubDialog.subContent);
@@ -36829,6 +37628,15 @@ class AdminConsoleDialog extends Dialog {
   feedbackList(feedback) {
     this.feedbackSubDialog.data(feedback);
   }
+  reportList(event) {
+    this.reportsSubDialog.data(event);
+  }
+  setReportCount(count) {
+    this.content.find(".adminReportsCount").text(count > 0 ? " (" + count + ")" : "");
+  }
+  reportFiled() {
+    this.reportsSubDialog.reportFiled();
+  }
   clientList(clients) {
     this.clientsSubDialog.data(clients);
   }
@@ -36847,6 +37655,8 @@ class AdminConsoleDialog extends Dialog {
   gotResponse(event) {
     if (event.action == "AdminBans") {
       this.bansSubDialog.gotResponse(event);
+    } else if (event.action == "AdminReports") {
+      this.reportsSubDialog.gotResponse(event);
     } else if (event.action == "AdminEvents") {
       this.eventsSubDialog.gotResponse(event);
     } else if (event.action == "AdminAccounts") {
@@ -37406,7 +38216,7 @@ class AdminConsoleClientsSubDialog extends SubDialog {
       html = '<span class="' + UI.rankToStyle(value.rank) + '" data-tooltip="<strong>UID:</strong> ' + value.uid + "<br />" + html2 + "<strong>Silenced:</strong> " + (value.silenced ? "Yes" : "No") + "<br /><strong>Muted:</strong> " + (value.muted ? "Yes" : "No") + "<br /><strong>Group:</strong> " + value.group + "<br /><strong>SID:</strong> " + (value.info ? value.info.software : "") + "<br /><strong>HID:</strong> " + (value.info ? value.info.hardware : "") + "<br /><strong>CID:</strong> " + (value.info ? value.info.cookie : "") + "<br /><strong>FP:</strong> " + (value.info ? value.info.fingerprint : "") + "<br /><strong>Serv:</strong> " + (value.info ? value.info.serv : "") + "<br/><strong>Bst:</strong> " + (value.info ? value.info.bst : "") + "<br /><strong>Tst:</strong> " + (value.info ? value.info.tst : "") + "<br /><strong>Languages:</strong> " + (value.info ? value.info.acceptLanguage : "") + '">' + (value.username || "") + "</span>";
       var html3 = '<span data-tooltip="<strong>Version:</strong> ' + value.version + "<br /><strong>Encryption:</strong> " + value.encryption + '">' + (value.client || "") + "</span>";
       var html4 = '<span data-tooltip="<strong>Visibility: </strong>' + (value.hiddenroom ? "Private" : "Public") + '">' + (value.room || "") + "</span>";
-      var html5 = '<span data-tooltip="<strong>IP Address:</strong> ' + value.ip + "<br /><strong>Public IP:</strong> " + value.publicip + "<br /><strong>Proxy:</strong> " + (value.proxy ? "Yes" : "No") + "<br /><strong>Hosting:</strong> " + (value.hosting ? "Yes" : "No") + "<br /><strong>Country:</strong> " + value.country + "<br /><strong>Shadowbanned:</strong> " + (value.ghostbanned ? "Yes" : "No") + '">' + (isIPv4(value.ip) ? "IPv4" : "IPv6") + "</span>";
+      var html5 = '<span data-tooltip="<strong>IP Address:</strong> ' + value.ip + "<br /><strong>Connection ID:</strong> " + value.publicip + "<br /><strong>Proxy:</strong> " + (value.proxy ? "Yes" : "No") + "<br /><strong>Hosting:</strong> " + (value.hosting ? "Yes" : "No") + "<br /><strong>Country:</strong> " + value.country + "<br /><strong>Shadowbanned:</strong> " + (value.ghostbanned ? "Yes" : "No") + '">' + (isIPv4(value.ip) ? "IPv4" : "IPv6") + "</span>";
       var value2 = formatTimestamp(value.connectedSince);
       self.table.addRow([value.uniqueID, value.uid, value.username, value.ip, html, html5, html4, html3, value2], false);
     });
@@ -37883,6 +38693,299 @@ class AdminConsoleFeedbackSubDialog extends SubDialog {
       self.viewFeedback();
     });
     this.dialog.loading(false);
+  }
+}
+class AdminConsoleReportsSubDialog extends SubDialog {
+  constructor(parent, subContent) {
+    super(parent, subContent);
+    this.table;
+    this.detailTable;
+    this.bantypeCheckbox;
+    this.groups = {};
+    this.current = null;
+    this.outcome = null;
+    this.showingClosed = false;
+  }
+  load() {
+    this.subContent.html(this.dialog.loadFile("forms/adminconsole.reports.html"));
+    this.table = new Table(this.subContent.find("#adminReportsTable"), null, "reportsTable", "fmTable");
+    this.table.setHeader(["Key", "Person", "Reports", "Reporters", "Signals"]);
+    this.table.hideColumns([1]);
+    this.detailTable = new Table(this.subContent.find("#adminReportsDetailTable"), null, "reportsDetailTable", "fmTable");
+    this.detailTable.setHeader(["Id", "Date", "From", "Category"]);
+    this.detailTable.hideColumns([1]);
+    this.updateButtons();
+    var self = this;
+    $(this.dialog).on("dialogResizingEnded.reportsSubdialog dialogMaximized.reportsSubdialog dialogRestored.reportsSubdialog", function (event) {
+      if (self.table) {
+        self.table.updated();
+        self.detailTable.updated();
+      }
+    });
+    $(this.table).on("tableRowSelected.reportsSubdialog tableRowUnselected.reportsSubdialog", function (event) {
+      self.selectGroup();
+    });
+    $(this.detailTable).on("tableRowSelected.reportsSubdialog tableRowUnselected.reportsSubdialog", function (event) {
+      self.updateButtons();
+    });
+    $(this.detailTable).on("tableRowDoubleClick.reportsSubdialog", function (event) {
+      self.readReport();
+    });
+    this.subContent.find('a[name="readReport"]').on(UI.pointerEvent("click", "adminSubdialog"), function (event) {
+      event.preventDefault();
+      self.readReport();
+    });
+    this.subContent.find('a[name="banReported"]').on(UI.pointerEvent("click", "adminSubdialog"), function (event) {
+      event.preventDefault();
+      self.showBan();
+    });
+    this.subContent.find('a[name="resolveReports"]').on(UI.pointerEvent("click", "adminSubdialog"), function (event) {
+      event.preventDefault();
+      self.showResolve("actioned");
+    });
+    this.subContent.find('a[name="dismissReports"]').on(UI.pointerEvent("click", "adminSubdialog"), function (event) {
+      event.preventDefault();
+      self.showResolve("dismissed");
+    });
+    this.subContent.find('a[name="toggleClosedReports"]').on(UI.pointerEvent("click", "adminSubdialog"), function (event) {
+      event.preventDefault();
+      self.showingClosed = !self.showingClosed;
+      self.request();
+    });
+    this.dialog.modal.on(UI.pointerEvent("click", "reportsSubdialog"), "#banFromReports", function (event) {
+      event.preventDefault();
+      self.ban();
+    });
+    this.dialog.modal.on(UI.pointerEvent("click", "reportsSubdialog"), "#applyReportResolution", function (event) {
+      event.preventDefault();
+      self.resolve(self.outcome, self.dialog.modal.find('textarea[name="note"]').val(), null);
+    });
+    this.request();
+  }
+  request() {
+    this.dialog.loading(true);
+    this.subContent.find(".reportsTitle").text(this.showingClosed ? "Closed reports" : "Open reports");
+    this.subContent.find('a[name="toggleClosedReports"] span').text(this.showingClosed ? "Open reports" : "Closed reports");
+    var message = {
+      command: "ADMINGET",
+      action: "ReportList",
+      closed: this.showingClosed
+    };
+    socket.send(message, true);
+  }
+  unload() {
+    this.dialog.modal.off(".reportsSubdialog");
+    $(this.dialog).off(".reportsSubdialog");
+    if (this.table) {
+      $(this.table).off(".reportsSubdialog");
+      $(this.detailTable).off(".reportsSubdialog");
+      this.table.reset();
+      this.detailTable.reset();
+    }
+    this.current = null;
+  }
+  isShowing() {
+    return this.dialog.currentSubDialog === this && this.dialog.active;
+  }
+  updateButtons() {
+    var selected = !!this.current;
+    var reportSelected = selected && this.detailTable.getSelected().length > 0;
+    this.subContent.find(".reportOpenOnly").toggle(!this.showingClosed);
+    this.subContent.find(".reportOpenOnly").toggleClass("disabled", !selected);
+    this.subContent.find('a[name="readReport"]').toggleClass("disabled", !reportSelected);
+  }
+  data(event) {
+    if (!!event.closed !== this.showingClosed) {
+      return;
+    }
+    this.table.clear();
+    this.detailTable.clear();
+    this.groups = {};
+    this.current = null;
+    var self = this;
+    $.each(event.groups || [], function (index, group) {
+      self.groups[group.key] = group;
+      self.table.addRow([escapeHTML(group.key), self.personLabel(group), group.reports.length, group.reporters, escapeHTML(self.signalsLabel(group))], false);
+    });
+    if (!event.closed) {
+      this.dialog.setReportCount((event.groups || []).length);
+    }
+    this.updateButtons();
+    this.dialog.changed();
+    this.table.updated();
+    this.detailTable.updated();
+    this.dialog.loading(false);
+  }
+  static count(value, noun) {
+    return value + " " + noun + (value == 1 ? "" : "s");
+  }
+  personLabel(group) {
+    var names = $.map(group.names, function (name) {
+      return escapeHTML(String(name));
+    }).join(", ");
+    return names + (group.uid > 0 ? "" : " (guest)");
+  }
+  signalsLabel(group) {
+    var list = [];
+    if (group.online) {
+      list.push("online");
+    }
+    if (group.serverBan) {
+      list.push(group.serverBan);
+    }
+    if (group.roomBans && group.roomBans.total > 0) {
+      list.push(group.roomBans.total + " room bans" + (group.roomBans.active ? " (" + group.roomBans.active + " in force)" : ""));
+    }
+    if (group.mutes && group.mutes.length) {
+      list.push("muted");
+    }
+    if (group.silences && group.silences.length) {
+      list.push("silenced");
+    }
+    return list.join(", ");
+  }
+  selectGroup() {
+    var selected = this.table.getSelected();
+    this.current = selected.length ? this.groups[selected[0].Key] : null;
+    this.detailTable.clear();
+    if (this.current) {
+      var self = this;
+      $.each(this.current.reports, function (index, report) {
+        self.detailTable.addRow([report.id, formatTimestamp(report.time), escapeHTML(String(report.from)), escapeHTML(String(report.reason))], false);
+      });
+    }
+    this.detailTable.updated();
+    this.updateButtons();
+  }
+  findReport(id) {
+    var found = null;
+    $.each(this.current ? this.current.reports : [], function (index, report) {
+      if (report.id == id) {
+        found = report;
+      }
+    });
+    return found;
+  }
+  readReport() {
+    var selected = this.detailTable.getSelected();
+    var report = selected.length ? this.findReport(selected[0].Id) : null;
+    if (!report) {
+      return;
+    }
+    this.dialog.enableModal(this.dialog.loadFile("forms/adminconsole.modal.readreport.html"));
+    var modal = this.dialog.modal;
+    var history = report.reporterTotal + " filed, " + report.reporterDismissed + " dismissed";
+    modal.find('input[name="rpfrom"]').val(report.from + (report.fromUid > 0 ? "" : " (guest, " + report.fromIp + ")"));
+    modal.find('input[name="rpabout"]').val(this.current.names.join(", ") + (this.current.ips.length ? " (" + this.current.ips.join(", ") + ")" : ""));
+    modal.find('input[name="rpdate"]').val(formatTimestamp(report.time, false));
+    modal.find('input[name="rproom"]').val(report.room);
+    modal.find('input[name="rpcategory"]').val(report.reason);
+    modal.find('input[name="rphistory"]').val(history);
+    modal.find('textarea[name="rpmessage"]').val(report.message);
+    if (report.status && report.status != "open") {
+      modal.find('input[name="rpresolution"]').val(report.status + " by " + (report.resolver || "?") + (report.resolvedAt ? ", " + formatTimestamp(report.resolvedAt, false) : "") + (report.banId ? ", ban #" + report.banId : "") + (report.resolution ? ": " + report.resolution : ""));
+    } else {
+      modal.find(".reportResolution").remove();
+    }
+  }
+  showBan() {
+    var group = this.current;
+    if (!group || this.showingClosed) {
+      return;
+    }
+    this.dialog.enableModal(this.dialog.loadFile("forms/adminconsole.modal.reportban.html"));
+    var modal = this.dialog.modal;
+    var addresses = modal.find("#reportBanAddresses");
+    $.each(group.ips, function (index, ip) {
+      addresses.append($("<option />").attr("value", ip));
+    });
+    modal.find('input[name="address"]').val(group.ips.length ? group.ips[group.ips.length - 1] : "").focus();
+    modal.find('input[name="comment"]').val("Reports: " + group.names.join(", "));
+    this.bantypeCheckbox = new Switch(modal.find('div[name="banType"]'), function (value) {
+      if (value) {
+        return "Shadowban";
+      } else {
+        return "Serverban";
+      }
+    });
+    var banLength = modal.find('select[name="banLength"]');
+    banLength.empty();
+    $.each(this.dialog.banLengths, function (index, length) {
+      banLength.append(new Option(length, index));
+    });
+    banLength.val(604800);
+    var reasons = [];
+    $.each(group.reasons || {}, function (reason, count) {
+      reasons.push(reason + (count > 1 ? " x" + count : ""));
+    });
+    modal.find('textarea[name="reason"]').val("Reported for " + reasons.join(", ") + " (" + AdminConsoleReportsSubDialog.count(group.reports.length, "report") + ", " + AdminConsoleReportsSubDialog.count(group.reporters, "reporter") + ")");
+  }
+  showResolve(outcome) {
+    if (!this.current || this.showingClosed) {
+      return;
+    }
+    this.outcome = outcome;
+    this.dialog.enableModal(this.dialog.loadFile("forms/adminconsole.modal.reportresolve.html"));
+    var modal = this.dialog.modal;
+    modal.find(".reportResolveTitle").text(outcome == "dismissed" ? "Dismiss reports" : "Resolved, no ban");
+    modal.find('input[name="reportPerson"]').val(this.current.names.join(", ") + " (" + AdminConsoleReportsSubDialog.count(this.current.reports.length, "report") + ")");
+    modal.find('textarea[name="note"]').focus();
+  }
+  ban() {
+    var modal = this.dialog.modal;
+    var address = $.trim(modal.find('input[name="address"]').val());
+    if (!isValidIP(address)) {
+      UI.dialogHandler.showAlert(textManager.getString("alerts.txtInvalidIP"));
+      return;
+    }
+    var reason = modal.find('textarea[name="reason"]').val();
+    this.resolve("actioned", reason, {
+      ip: address,
+      comment: modal.find('input[name="comment"]').val(),
+      ghost: this.bantypeCheckbox.checked,
+      expires: modal.find('select[name="banLength"]').val(),
+      reason: reason,
+      publicreason: modal.find('textarea[name="publicreason"]').val()
+    });
+  }
+  resolve(outcome, note, ban) {
+    if (!this.current) {
+      return;
+    }
+    var message = {
+      command: "ADMINSET",
+      action: "AdminReports",
+      perform: "resolve",
+      outcome: outcome,
+      ids: $.map(this.current.reports, function (report) {
+        return report.id;
+      }),
+      note: note || ""
+    };
+    if (ban) {
+      message.ban = ban;
+    }
+    socket.send(message, true);
+    this.dialog.loading(true);
+  }
+  gotResponse(event) {
+    this.dialog.loading(false);
+    if (event.code == "OK") {
+      this.dialog.disableModal();
+      UI.dialogHandler.showAlert(AdminConsoleReportsSubDialog.count(event.closed, "report") + " " + event.outcome + (event.banId ? ", ban #" + event.banId + " added" : ""));
+    } else if (event.code == "NOTHINGOPEN") {
+      this.dialog.disableModal();
+      UI.dialogHandler.showAlert("Somebody else already closed these reports");
+    } else {
+      UI.dialogHandler.showAlert("Error: " + event.code);
+      return;
+    }
+    this.request();
+  }
+  reportFiled() {
+    if (this.isShowing() && !this.showingClosed && !this.current && !this.dialog.modal.is(":visible")) {
+      this.request();
+    }
   }
 }
 class AdminConsoleSystemSubDialog extends SubDialog {
@@ -38781,10 +39884,36 @@ function stripBBCode(comment) {
   }
   return comment.replace(/\[\/?(?:b|i|u|url|quote|code|img|color|size)*?.*?\]/gim, "");
 }
+var linkSignatures = new Map();
+var maxLinkSignatures = 2000;
+function storeLinkSignatures(links) {
+  if (!links || typeof links !== "object") {
+    return;
+  }
+  for (var url in links) {
+    if (Object.prototype.hasOwnProperty.call(links, url) && typeof links[url] === "string" && /^[0-9a-f]{32}$/.test(links[url])) {
+      linkSignatures.delete(url);
+      linkSignatures.set(url, links[url]);
+    }
+  }
+  while (linkSignatures.size > maxLinkSignatures) {
+    linkSignatures.delete(linkSignatures.keys().next().value);
+  }
+}
+function signedLinkURL(url) {
+  var signature = linkSignatures.get(url);
+  return UI.baseURL + "/url?u=" + encodeURIComponent(url) + (signature ? "&s=" + signature : "");
+}
+function resignLinks(container) {
+  $(container).find("a[data-url]").each(function () {
+    $(this).attr("href", signedLinkURL($(this).attr("data-url")));
+  });
+}
 function parseURL(escaped) {
   var value = /(https?:\/\/[^\s<]+)/g;
   return escaped.replace(value, function (match) {
-    return '<a href="' + match + '" target="_blank">' + match + "</a>";
+    var url = htmlToText(match);
+    return '<a href="' + escapeHTML(signedLinkURL(url)) + '" data-url="' + escapeHTML(url) + '" target="_blank" rel="noopener noreferrer">' + match + "</a>";
   });
 }
 function nl2br(value, value2) {
@@ -48817,9 +49946,6 @@ class CmdLETSTALK extends CommandHandler {
       encryption = firstMatch(event.supportedencryptions, this.socket.supportedEncryptions);
     }
     if (encryption) {
-      if (event.clientip) {
-        this.device.ip = this.device.getIPAddressInfo(event.clientip);
-      }
       var message = {
         command: "CONNECTION",
         option: "READY",
@@ -48847,11 +49973,7 @@ class CmdSUCCESS extends CommandHandler {
     message.diff = this.UI.timeDiff;
     message.flag = this.socket.flag;
     message.clientId = this.UI.clientId;
-    message.ip = {
-      country: this.device.ip.countrycode,
-      proxy: this.device.ip.proxy,
-      hosting: this.device.ip.hosting
-    };
+    message.ip = {};
     var ready = await this.device.ready();
     message.serv = this.device.getString();
     message.bst = this.device.getBotString();
@@ -48873,7 +49995,7 @@ class CmdSUCCESS extends CommandHandler {
 class CmdFAIL extends CommandHandler {
   execute(event) {
     if (event.reason == "OUTDATED") {
-      this.UI.hideScreen(this.textManager.getString("alerts.txtOutdatedApp"), false, 1);
+      this.UI.hideScreen(this.textManager.getString("alerts.txtOutdatedApp"), false, 1, "fa-arrows-rotate");
       this.socket.canReconnect = false;
     } else if (event.reason == "MAXCONNECTIONS") {
       this.UI.dialogHandler.showAlert(this.textManager.getString("alerts.txtTooManyConnections"));
@@ -49068,8 +50190,45 @@ class CmdCHATMSG extends CommandHandler {
   execute(event) {
     const userInRoom = this.getUserInRoom(event.from);
     if (userInRoom) {
-      this.UI.chatDialog.createMessage(event.chatname, event.chattype, "MSG", event.message, userInRoom.username, event.image);
+      storeLinkSignatures(event.links);
+      this.UI.chatDialog.createMessage(event.chatname, event.chattype, "MSG", event.message, userInRoom.username, event.image, event.id ? {
+        id: event.id,
+        replyTo: event.replyTo || null
+      } : null);
     }
+  }
+}
+class CmdCHATACK extends CommandHandler {
+  execute(event) {
+    if (!event.localRef || !event.id) {
+      return;
+    }
+    this.UI.chatDialog.acknowledgeMessage(event.localRef, event.id);
+    if (event.links) {
+      storeLinkSignatures(event.links);
+      resignLinks(this.UI.chatDialog.findMessage(String(event.id)));
+    }
+  }
+}
+class CmdCHATREACTIONS extends CommandHandler {
+  execute(event) {
+    this.UI.chatDialog.applyReactions(event.id, event.reactions);
+  }
+}
+class CmdCHATEDITED extends CommandHandler {
+  execute(event) {
+    storeLinkSignatures(event.links);
+    this.UI.chatDialog.applyEdit(event.id, event.message);
+  }
+}
+class CmdCHATDELETED extends CommandHandler {
+  execute(event) {
+    this.UI.chatDialog.applyDelete(event.id, event.by);
+  }
+}
+class CmdCHATDELETEDBY extends CommandHandler {
+  execute(event) {
+    this.UI.chatDialog.applyDeletedBy(event.id, event.moderator);
   }
 }
 class CmdRELOGGED extends CommandHandler {
@@ -49382,6 +50541,8 @@ class CmdUSERRESPONSE extends CommandHandler {
       if (activeDialog && typeof activeDialog.handleEmailVerification === "function") {
         activeDialog.handleEmailVerification(event.code);
       }
+    } else if (event.option == "REPORT") {
+      this.UI.reportDialog.userReportResult(event);
     } else if (event.option == "ChangePassword") {
       this.UI.profileDialog.changePasswordResponse(event);
     } else if (event.option == "MUSTLOG") {
@@ -49517,7 +50678,9 @@ class CmdGALLERYRESPONSE extends CommandHandler {
     } else if (event.option == "Gis") {
       this.UI.galleryImageDialog.gotUpdated(event);
     } else if (event.option == "Comment") {
-      if (event.perform == "add") {
+      if (event.perform == "add" && event.status == "FAIL") {
+        this.UI.galleryImageDialog.refusedComment(event.tempId, event.reason);
+      } else if (event.perform == "add") {
         this.UI.galleryImageDialog.addedComment(event.newId, event.tempId, event);
       } else if (event.perform == "delete") {
         this.UI.galleryImageDialog.deletedComment(event.status, event.id);
@@ -49574,6 +50737,8 @@ class CmdADMINRESPONSE extends CommandHandler {
       this.UI.adminConsoleDialog.serverStats(message.cpu, message.ram);
     } else if (message.option == "Arl") {
       this.UI.adminConsoleDialog.roomList(message.rooms);
+    } else if (message.option == "Arp") {
+      this.UI.adminConsoleDialog.reportList(message);
     } else if (message.option == "Afl") {
       this.UI.adminConsoleDialog.feedbackList(message.feedback);
     } else if (message.option == "Acl") {
@@ -49613,6 +50778,20 @@ class CmdGLOBALALERT extends CommandHandler {
       this.UI.chatDialog.registerGlobalMessage(new Icon("fa-exclamation-triangle").html() + " " + event.text);
     } else {
       this.UI.dialogHandler.showAlert(event.text);
+    }
+  }
+}
+class CmdNOTIFICATION extends CommandHandler {
+  execute(event) {
+    if (event.type != "REPORT") {
+      return;
+    }
+    var text = new Icon("fa-flag").html() + " " + escapeHTML(String(event.from)) + " reported " + escapeHTML(String(event.target)) + " (" + escapeHTML(String(event.reason)) + ") in " + escapeHTML(String(event.room)) + ". Admin Console, Reports.";
+    if (this.room && this.room.connected) {
+      this.UI.chatDialog.registerGlobalMessage(text);
+    }
+    if (this.UI.adminConsoleDialog) {
+      this.UI.adminConsoleDialog.reportFiled();
     }
   }
 }
@@ -49934,6 +51113,11 @@ class CommandRegistry {
     this.register("CONNECTIONISSUES", CmdCONNECTIONISSUES);
     this.register("GLOBALRESPONSE", CmdGLOBALRESPONSE);
     this.register("CHATMSG", CmdCHATMSG);
+    this.register("CHATACK", CmdCHATACK);
+    this.register("CHATREACTIONS", CmdCHATREACTIONS);
+    this.register("CHATEDITED", CmdCHATEDITED);
+    this.register("CHATDELETED", CmdCHATDELETED);
+    this.register("CHATDELETEDBY", CmdCHATDELETEDBY);
     this.register("RELOGGED", CmdRELOGGED);
     this.register("YOURELOGGED", CmdYOURELOGGED);
     this.register("DIRECT", CmdDIRECT);
@@ -49948,6 +51132,7 @@ class CommandRegistry {
     this.register("ADMINREQRESPONSE", CmdADMINREQRESPONSE);
     this.register("GLOBALMSG", CmdGLOBALMSG);
     this.register("GLOBALALERT", CmdGLOBALALERT);
+    this.register("NOTIFICATION", CmdNOTIFICATION);
     this.register("BANNED", CmdBANNED);
     this.register("LOBBY", CmdLOBBY);
     this.register("MESSENGERNEW", CmdMESSENGERNEW);
@@ -51729,8 +52914,8 @@ class UserInterface {
     this.uniqueID = null;
     this.clientName = "FlockMod";
     this.client = "FMH5C";
-    this.version = "13.5.10+0";
-    this.assetVersion = "20afd97a";
+    this.version = "13.5.11+5";
+    this.assetVersion = "f11d0757";
     this.account = new Account("Anonymous");
     this.baseURL = "https://" + domain;
     this.baseDir = "/draw/";
@@ -55516,7 +56701,6 @@ class UserInterface {
 }
 class Device {
   constructor(window2 = null) {
-    this.ip = {};
     this.browser = "other";
     this.navigator = {};
     this.screen = {};
@@ -55664,20 +56848,6 @@ class Device {
     } catch (error) {
       return null;
     }
-  }
-  getIPAddressInfo(ip) {
-    var response = "";
-    $.ajax({
-      type: "POST",
-      cache: false,
-      async: false,
-      url: "/api/conn.php?ip=" + ip,
-      contentType: "application/json",
-      dataType: "json"
-    }).done(function (response2) {
-      response = response2;
-    });
-    return response;
   }
   getBotInfo() {
     var options = {
@@ -56084,10 +57254,16 @@ class SoundSystem {
   addSound(soundKey, value) {
     this.sounds[soundKey] = new Audio(value);
   }
+  static get SETTINGS() {
+    return {
+      staff: "modchat"
+    };
+  }
   play(soundKey) {
     if (soundKey in this.sounds) {
       var soundVolume = UI.userPreferences.getProperty("soundvolume", 1);
-      if (UI.userPreferences.getGroupOption("sounds", soundKey, true) && soundVolume > 0) {
+      var setting = SoundSystem.SETTINGS[soundKey] || soundKey;
+      if (UI.userPreferences.getGroupOption("sounds", setting, true) && soundVolume > 0) {
         var sound = this.sounds[soundKey];
         sound.volume = soundVolume;
         sound.play();
@@ -56335,9 +57511,10 @@ class LoadingScreen {
     if (flag) {
       this.container.html('<div class="circularProgress sync"><span class="progress-left"><span class="progress-bar"></span></span><span class="progress-right"><span class="progress-bar"></span></span><div class="progress-value">0%</div></div><p class="progressText bottomProgressText"><span class="text"></span></p>');
     } else {
-      this.container.html('<p class="progressText"><span class="icon">' + new Icon(iconClass, "fas", "fa-spin").html() + '</span><span class="text"></span></p>');
+      var spin = iconClass == "fa-cog" ? "fa-spin" : "";
+      this.container.html('<p class="progressText"><span class="icon">' + new Icon(iconClass, "fas", spin).html() + '</span><span class="text"></span></p>');
     }
-    this.setText("", html);
+    this.setText(html);
     this.container.css("opacity", opacity);
     this.container.show();
   }
