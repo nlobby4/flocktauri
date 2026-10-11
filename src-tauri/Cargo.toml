@@ -1,6 +1,6 @@
 [package]
 name = "flockmoD"
-version = "1.7.2"
+version = "1.7.3"
 description = "Flockmod built with Tauri"
 authors = ["you"]
 edition = "2021"

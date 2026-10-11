@@ -19348,7 +19348,7 @@ class ConfigDialog extends Dialog {
     super(parent, name);
     this.icon = "fa-cog";
     this.caption = textManager.getString("config.title");
-    this.helpLink = "https://flockmod.com/help/tools/config/";
+    this.helpLink = "/help/tools/config/";
     this.loadContent(this.loadFile("forms/config.main.html"));
     this.table;
     this.elementCB;
@@ -19437,6 +19437,7 @@ class ConfigDialog extends Dialog {
   loadPage(subcontent) {
     var self = this;
     if (subcontent !== undefined) {
+      this.helpLink = subcontent == "shortcuts" ? "/help/tools/shortcuts/" : "/help/tools/config/";
       this.form.find(".subcontentOption").removeClass("selected");
       this.form.find(".subcontentOption[data-subcontent=" + subcontent + "]").addClass("selected");
       this.loading(true);
@@ -19530,13 +19531,13 @@ class ConfigDialog extends Dialog {
           if (name == "gallery") {
             window.open(UI.galleryURL + "/", "_blank");
           } else if (name == "news") {
-            UI.helpDialog.show("https://flockmod.com/news/");
+            UI.helpDialog.show("/news/");
           } else if (name == "feedback") {
             UI.feedbackDialog.show();
           } else if (name == "ideas") {
-            window.open("http://ideas.flockmod.com", "_blank");
+            window.open("https://ideas.flockmod.com/", "_blank");
           } else if (name == "help") {
-            window.open("https://flockmod.com/help/", "_blank");
+            window.open("/help/", "_blank");
           }
         });
         var table = new Table(this.content.find("#specialThanks"), null, "thanksTable", "fmTable");
@@ -19676,7 +19677,7 @@ class LoginDialog extends Dialog {
     this.closable = false;
     this.maximizable = true;
     this.languageSelector = true;
-    this.helpLink = "https://flockmod.com/help/";
+    this.helpLink = "/help/basics/";
     this.isModal = false;
     this.blockBackground = true;
     this.blockStyle = "blockwelcome";
@@ -20252,7 +20253,7 @@ class ChatDialog extends Dialog {
     this.channels = {};
     this.icon = "fa-comment";
     this.caption = textManager.getString("chat.title");
-    this.helpLink = "https://flockmod.com/help/tools/social/";
+    this.helpLink = "/help/tools/social/";
     this.fontSize = 13;
     this.spamLimit = 25;
     this.pendingImage = null;
@@ -21921,7 +21922,7 @@ class UndoDialog extends Dialog {
     super(parent, name);
     this.icon = "fa-undo";
     this.caption = textManager.getString("undo.title");
-    this.helpLink = "https://flockmod.com/help/basics/drawing/";
+    this.helpLink = "/help/basics/drawing/";
     this.width = 770;
     this.height = 600;
     this.enabled = false;
@@ -22588,7 +22589,7 @@ class RoomManagerDialog extends Dialog {
     super(parent, name);
     this.icon = "fa-wrench";
     this.caption = textManager.getString("roommanager.title");
-    this.helpLink = "https://flockmod.com/help/room/";
+    this.helpLink = "/help/room/";
     this.banLengths = [0, 900, 1800, 3600, 10800, 21600, 43200, 86400, 259200, 604800, 1209600, 2592000, 7776000, 15552000, 23328000, 31536000];
     this.muteLengths = [300, 900, 1800, 3600, 7200, 10800, 14400, 18000, 21600, 43200, 86400, 259200, 345600, 432000, 518400, 604800, 1209600];
     this.loadContent(this.loadFile("forms/roommanager.main.html"));
@@ -22623,6 +22624,7 @@ class RoomManagerDialog extends Dialog {
     this.content.find(".dynamicDialogArea").empty();
   }
   loadSubDialog(subcontent) {
+    this.helpLink = ["bans", "mutes", "silences"].includes(subcontent) ? "/help/basics/moderation/" : "/help/room/";
     var dynamicDialogArea = this.content.find(".dynamicDialogArea");
     dynamicDialogArea.empty();
     dynamicDialogArea.hide();
@@ -24008,6 +24010,7 @@ class SaveDialog extends Dialog {
     super(parent, name);
     this.icon = "fa-image";
     this.caption = textManager.getString("save.title");
+    this.helpLink = "/help/gallery/";
     this.width = 705;
     this.height = 590;
     this.canvasWidth;
@@ -24541,6 +24544,7 @@ class UploadDialog extends Dialog {
     super(parent, name);
     this.icon = "fa-upload";
     this.caption = textManager.getString("upload.title");
+    this.helpLink = "/help/tools/";
     this.width = 705;
     this.height = 450;
     this.loadContent(this.loadFile("forms/upload.main.html"));
@@ -24616,6 +24620,7 @@ class BrushDesignerDialog extends Dialog {
     super(parent, name);
     this.icon = "fa-paint-brush";
     this.caption = textManager.getString("brushdesigner.title");
+    this.helpLink = "/help/tools/";
     this.canvasSize = 140;
     this.brushSize = 10;
     this.brushAlpha = 1;
@@ -24953,6 +24958,7 @@ class BrushGalleryDialog extends Dialog {
     super(parent, name);
     this.icon = "fa-th-list";
     this.caption = textManager.getString("brushgallery.title");
+    this.helpLink = "/help/tools/";
     this.canvasScale = 80;
     this.canvasSize = 140;
     this.brushesDir = "brushes/custom/";
@@ -25071,6 +25077,7 @@ class UserGalleryDialog extends Dialog {
     this.featuredUsers = [];
     this.icon = "fa-image";
     this.caption = textManager.getString("usergallery.title");
+    this.helpLink = "/help/gallery/";
     this.loadContent(this.loadFile("forms/usergallery.main.html"));
   }
   loadContent(html) {
@@ -25485,6 +25492,7 @@ class UserProfileDialog extends Dialog {
     this.youFollowing = false;
     this.icon = "fa-id-card";
     this.caption = textManager.getString("userprofile.title");
+    this.helpLink = "/help/tools/social/";
     this.loadContent(this.loadFile("forms/userprofile.v2.html"));
   }
   loadContent(html) {
@@ -25750,6 +25758,7 @@ class ProfileDialog extends Dialog {
     this.table;
     this.icon = "fa-user-tie";
     this.caption = textManager.getString("profile.title");
+    this.helpLink = "/help/account/";
     this.loadContent(this.loadFile("forms/profile.main.html"));
     var self = this;
     this.content.on(UI.pointerEvent("click"), ".subcontentOption", function (event) {
@@ -26072,6 +26081,7 @@ class EditProfileDialog extends Dialog {
     super(parent, name);
     this.icon = "fa-id-card";
     this.caption = textManager.getString("editprofile.title");
+    this.helpLink = "/help/account/";
     this.width = 560;
     this.height = 420;
     this.minWidth = 420;
@@ -26166,6 +26176,7 @@ class ColorDialog extends Dialog {
     super(parent, name);
     this.icon = "fa-palette";
     this.caption = textManager.getString("color.title");
+    this.helpLink = "/help/basics/drawing/";
     this.width = 800;
     this.height = 485;
     this.loadContent(this.loadFile("forms/color.main.html"));
@@ -34717,6 +34728,7 @@ class ReportDialog extends Dialog {
     super(parent, name);
     this.icon = "fa-flag";
     this.caption = textManager.getString("report.lblReportUser");
+    this.helpLink = "/help/safety/";
     this.width = 500;
     this.height = 450;
     this.targetUsername = null;
@@ -34863,7 +34875,7 @@ class AnimationDialog extends Dialog {
     super(parent, name);
     this.icon = "fa-film";
     this.caption = textManager.getString("animation.title");
-    this.helpLink = "https://flockmod.com/help/tools/animation/";
+    this.helpLink = "/help/tools/animation/";
     this.width = 820;
     this.height = 590;
     this.playing = false;
@@ -35196,7 +35208,7 @@ class MessengerDialog extends Dialog {
     super(parent, name);
     this.icon = "fa-envelope";
     this.caption = textManager.getString("messenger.title");
-    this.helpLink = "https://flockmod.com/help/tools/social/";
+    this.helpLink = "/help/tools/social/";
     this.fontSize = 13;
     this.width = 700;
     this.loadContent(this.loadFile("forms/messenger.main.html"));
@@ -35991,6 +36003,7 @@ class FriendsDialog extends Dialog {
     super(parent, name);
     this.icon = "fa-user-group";
     this.caption = textManager.getString("friends.title");
+    this.helpLink = "/help/tools/social/";
     this.width = 600;
     this.height = 480;
     this.minWidth = 380;
@@ -36478,6 +36491,7 @@ class GalleryImageDialog extends Dialog {
     super(parent, name);
     this.icon = "fa-image";
     this.caption = textManager.getString("galleryimage.title");
+    this.helpLink = "/help/gallery/";
     this.imageId;
     this.imageOwner;
     this.tags = [];
@@ -52903,7 +52917,7 @@ class UserInterface {
     this.clientName = "FlockMod";
     this.client = "FMH5C";
     this.version = "13.5.11+5";
-    this.assetVersion = "f11d0757";
+    this.assetVersion = "d92ee75d";
     this.account = new Account("Anonymous");
     this.baseURL = "https://" + domain;
     this.baseDir = "/draw/";
@@ -53248,6 +53262,20 @@ class UserInterface {
           this.userPreferences.setProperty("language", this.preferredLanguage);
         }
       }
+      $(this).on("firstSyncStarted", function (event) {
+        self.firstSyncUser = event.username;
+        self.firstSyncEnabled = true;
+        self.firstSyncProgress = false;
+        self.hideScreen("", true, 0.7);
+        self.loadingScreen.setText(textManager.getString("global.lblRequestingBoard", escapeHTML(event.username), false) + '<br /><br /><a href="#" name="leaveRoom">' + textManager.getString("global.lblCancelAndLeave") + "</a>");
+        room.loading = true;
+        var timeout = 15;
+        setTimeout(function () {
+          if (!self.firstSyncProgress && self.firstSyncEnabled && self.firstSyncUser == event.username && room.session == event.roomsession) {
+            $(self).triggerHandler(new firstSyncEndedEvent(event.username, true).getEvent());
+          }
+        }, timeout * 1000);
+      });
       $(this).on("firstSyncProgress", function (event) {
         if (!self.firstSyncProgress) {
           (function () {
@@ -53255,7 +53283,7 @@ class UserInterface {
             const skipSyncingEnabled = localStorage.getItem("skipSyncing") === "true";
 
             // Build text based on skipSyncing setting
-            let progressText = textManager.getString("global.lblSyncingWith", event.username, false);
+            let progressText = textManager.getString("global.lblSyncingWith", escapeHTML(event.username), false);
 
             // If skipSyncing is true, always show the skip button visible
             if (skipSyncingEnabled) {
@@ -54675,7 +54703,9 @@ class UserInterface {
       $(self).triggerHandler(new windowBlurredEvent().getEvent());
     });
     $(document).on("visibilitychange", function (event) {
-      if (room && room.myself) {
+      if (room && room.myself && !room.connected) {
+        room.myself.inactive = document.visibilityState == "hidden";
+      } else if (room && room.myself) {
         room.myself.changeInactive(document.visibilityState == "hidden");
       }
     });
@@ -57542,36 +57572,63 @@ class TextManager {
       es: "Español",
       de: "Deutsch",
       pt: "Português",
-      ru: "Русский"
+      ru: "Русский",
+      fr: "Français",
+      tr: "Türkçe",
+      ja: "日本語"
     };
+    this.locale = "en";
+    this.catalogs = {};
   }
   loadFiles(value) {
     var self = this;
-    $.i18n().load(value).done(function () {
+    var requests = Object.keys(value).map(function (locale) {
+      return $.getJSON(value[locale]).then(function (messages) {
+        delete messages["@metadata"];
+        self.catalogs[locale] = new FMMessageFormat.Catalog(locale, messages);
+      }, function () {
+        console.error("Could not load the " + locale + " texts from " + value[locale]);
+        return $.Deferred().resolve();
+      });
+    });
+    $.when.apply($, requests).then(function () {
       $(self).triggerHandler(new fileLoadedEvent().getEvent());
     });
   }
+  catalog() {
+    return this.catalogs[this.locale] || this.catalogs.en || new FMMessageFormat.Catalog("en", {});
+  }
+  format(key, args) {
+    var catalog = this.catalog();
+    if (!catalog.has(key) && this.catalogs.en && this.catalogs.en.has(key)) {
+      catalog = this.catalogs.en;
+    }
+    try {
+      return catalog.format(key, args);
+    } catch (error) {
+      console.error("Malformed text " + key + ": " + error.message);
+      return key;
+    }
+  }
   hasString(value) {
-    var i18n = $.i18n(value);
-    return i18n !== value;
+    return this.format(value) !== value;
   }
   getString(i18n, i18nArgs = null, flag = true) {
-    if (i18nArgs != null) {
-      if (Array.isArray(i18nArgs)) {
-        i18nArgs.unshift(i18n);
-        return (flag ? '<span data-i18n="' + i18n + '"' + (i18nArgs ? ' data-i18n-args="' + i18nArgs.toString() + '"' : "") + ">" : "") + $.i18n.apply(null, i18nArgs) + (flag ? "</span>" : "");
-      }
+    var text = this.format(i18n, i18nArgs);
+    if (!flag) {
+      return text;
     }
-    return (flag ? '<span data-i18n="' + i18n + '"' + (i18nArgs ? ' data-i18n-args="' + i18nArgs + '"' : "") + ">" : "") + $.i18n(i18n, i18nArgs) + (flag ? "</span>" : "");
+    var args = i18nArgs != null ? ' data-i18n-args="' + i18nArgs.toString() + '"' : "";
+    return '<span data-i18n="' + i18n + '"' + args + ">" + text + "</span>";
   }
   getLocale() {
-    return $.i18n().locale;
+    return this.locale;
   }
   changeLocale(locale) {
     if (locale in this.availableLanguages) {
-      if ($.i18n().locale != locale) {
-        let locale2 = $.i18n().locale;
-        $.i18n().locale = locale;
+      if (this.locale != locale) {
+        let locale2 = this.locale;
+        this.locale = locale;
         $(this).triggerHandler(new localeChangedEvent(locale, locale2).getEvent());
       }
     }
@@ -57583,7 +57640,30 @@ class TextManager {
     return availableLanguageKey in this.availableLanguages;
   }
   updateElement(value) {
-    value.i18n();
+    var self = this;
+    var elements = value.is("[data-i18n]") ? value : value.find("[data-i18n]");
+    elements.each(function () {
+      var element = $(this);
+      var key = element.attr("data-i18n");
+      var rawArgs = element.attr("data-i18n-args");
+      var args = rawArgs === undefined || rawArgs === "" ? [] : String(rawArgs).split(",");
+      var attr = null;
+      var match = /^\[([^\]]+)\](.*)$/.exec(key);
+      if (match) {
+        attr = match[1];
+        key = match[2];
+      }
+      var text = self.format(key, args);
+      if (attr === "html") {
+        element.html(text);
+      } else if (attr) {
+        element.attr(attr, text);
+      } else if (/<[a-z\/]/i.test(self.format(key))) {
+        element.html(text);
+      } else {
+        element.text(text);
+      }
+    });
   }
 }
 class AdminConsoleCommandsSubDialog extends SubDialog {
@@ -57768,12 +57848,35 @@ function loadTexts() {
     es: "/draw/locale/es.json?" + UI.assetVersion,
     de: "/draw/locale/de.json?" + UI.assetVersion,
     pt: "/draw/locale/pt.json?" + UI.assetVersion,
-    ru: "/draw/locale/ru.json?" + UI.assetVersion
+    ru: "/draw/locale/ru.json?" + UI.assetVersion,
+    fr: "/draw/locale/fr.json?" + UI.assetVersion,
+    tr: "/draw/locale/tr.json?" + UI.assetVersion,
+    ja: "/draw/locale/ja.json?" + UI.assetVersion
+  });
+}
+function splashLanguage() {
+  var language = null;
+  try {
+    var saved = JSON.parse(window.localStorage.getItem("fmod"));
+    language = JSON.parse(saved.preferences).properties.language;
+  } catch (error) {}
+  if (!language && navigator.language) {
+    language = navigator.language.split("-")[0];
+  }
+  return language in FM_SPLASH ? language : "en";
+}
+function splashText(key, seconds) {
+  var language = splashLanguage();
+  return FMMessageFormat.format(language, FM_SPLASH[language][key], {
+    seconds: seconds
   });
 }
 $(document).ready(function () {
   UI = new UserInterface();
   var value = localStorage.getItem("quickLaunch") === "true" ? 0 : 4;
+  $(".splashSubtitle").text(splashText("subtitle"));
+  $("#loadingText").text(splashText("ready"));
+  changeCaption(splashText("start"));
   var self = this;
   $(".splashScreen").contextmenu(function (event) {
     event.preventDefault();
@@ -57781,13 +57884,13 @@ $(document).ready(function () {
   var interval = setInterval(function () {
     if (value == 0) {
       clearInterval(interval);
-      changeCaption("LOADING...");
+      changeCaption(splashText("loading"));
       $("#loadingSpinner").show();
-      $("#loadingText").text("Initializing flockmoD...");
+      $("#loadingText").text(splashText("initializing").replace("FlockMod", "flockmoD"));
       $("#startButton:not(.disabled)").trigger("click");
     } else if (value > 0) {
-      changeCaption("START DRAWING (" + value-- + ")");
-      $("#loadingText").text("Preparing canvas in " + (value + 1) + " seconds...");
+      changeCaption(splashText("start") + " (" + value-- + ")");
+      $("#loadingText").text(splashText("preparing", value + 1));
     }
   }, 1000);
   $("#startButton").on("touchstart click", function (event) {
